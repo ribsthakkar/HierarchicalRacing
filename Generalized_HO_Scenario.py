@@ -88,9 +88,9 @@ lb.append(min_point_horizon)
 
 
 ub = [init_x, c1x, c2x]
-for i in range(3, bezier_order+1): ub.append(800)
+for i in range(3, bezier_order+1): ub.append(850)
 ub += [init_y, c1y, c2y]
-for i in range(3, bezier_order+1): ub.append(600)
+for i in range(3, bezier_order+1): ub.append(650)
 ub.append(max_point_horizon)
 
 
@@ -129,6 +129,7 @@ def acceleration(c, tau):
     # return (20) * (((c[2] - 2 * c[1] + c[0]) * (1 - (tau/time_horizon)) ** 3) + (3 * ((c[3] - 2 * c[2] + c[1]) * (tau/time_horizon) * (1 - (tau/time_horizon))**2))
     #              + (3 * ((c[4] - 2 * c[3] + c[2]) * (tau/time_horizon)**2 * (1 - (tau/time_horizon)))) + (c[5] - 2 * c[4] + c[3]) * (tau/time_horizon) ** 3) /(time_horizon**2)
 
+@lru_cache(maxsize=None)
 def distance_to_center(x, y):
     point = geom.Point(x, y)
     return point.distance(line)
@@ -165,7 +166,7 @@ def get_acc_bound(sp):
 def opt(c):
     total = 0
     t = 0
-    while t <= time_horizon+time_delta/2:
+    while t <= time_horizon + time_delta / 2:
         if t > time_horizon - time_delta / 2: t = time_horizon
         x_p = speed(c[:len(c_x)], t)
         x_pp = acceleration(c[:len(c_x)], t)
@@ -174,23 +175,24 @@ def opt(c):
         sp = math.sqrt(x_p**2 + y_p**2)
         ac = math.sqrt(x_pp**2 + y_pp**2)
         def con3(c):
-            if sp >= 0.1 and ac >= 0.1 and ((x_p * x_pp + y_p * y_pp) / (sp * ac) >= .08):
+            if sp >= 0.1 and ac >= 0.1 and ((x_p * x_pp + y_p * y_pp) >= 0.01):
                 return min(0, get_acc_bound(sp) - ac)
             else:
                 return min(0, 5 * gravitational_acceleration - ac)
 
-        total -= 4*con3(c)
+        total -= 1*con3(c)
         # total -= .5*ac/time_delta
-        # total -= .5*sp/time_delta
-        total += 6*distance_to_center(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x)+len(c_y)], t))
+        total -= .25 * sp
+        total += 1 * distance_to_center(trajectory(c[:len(c_x)], t),
+                                          trajectory(c[len(c_x):len(c_x) + len(c_y)], t))
         # total -= find_pos_index(init_position_index, trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x)+len(c_y)], t))/time_delta
         t += time_delta
-    #             (c[len(c_x)+len(c_y)-1] - c[len(c_x)+len(c_y)-2]) * (main_track_y[position_index+point_horizon]-main_track_y[position_index+point_horizon-1])
-    # total += 5*math.sqrt((c[len(c_x)-1] - main_track_x[(int(c[-1]) + init_position_index)%len(main_track_x)])**2 + (c[len(c_x) + len(c_y)-1] - main_track_y[(int(c[-1]) + init_position_index)%len(main_track_y)])**2)
-    # total += 10*math.sqrt((c[len(c_x) + len(c_y)-1] - main_track_y[(int(c[-1]) + init_position_index)%len(main_track_y)])**2)
-    return total - \
-           5.5*find_pos_index(init_position_index, trajectory(c[:len(c_x)], time_horizon), trajectory(c[len(c_x):len(c_x)+len(c_y)], time_horizon)) - \
-           8*math.sqrt(speed(c[:len(c_x)], time_horizon)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], time_horizon)**2) #+ arc_length(c[:len(c_x)], c[len(c_x):len(c_x)+len(c_y)]) #-3*math.sqrt(speed(c[:len(c_x)], time_horizon)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], time_horizon)**2)
+
+        #             (c[len(c_x)+len(c_y)-1] - c[len(c_x)+len(c_y)-2]) * (main_track_y[position_index+point_horizon]-main_track_y[position_index+point_horizon-1])
+        # total += 5*math.sqrt((c[len(c_x)-1] - main_track_x[(int(c[-1]) + init_position_index)%len(main_track_x)])**2 + (c[len(c_x) + len(c_y)-1] - main_track_y[(int(c[-1]) + init_position_index)%len(main_track_y)])**2)
+        # total += 10*math.sqrt((c[len(c_x) + len(c_y)-1] - main_track_y[(int(c[-1]) + init_position_index)%len(main_track_y)])**2)
+        # total -= 20 * find_pos_index(init_position_index, trajectory(c[:len(c_x)], time_horizon), trajectory(c[len(c_x):len(c_x) + len(c_y)], time_horizon))
+    return total
 
 constraints = []
 
@@ -198,8 +200,10 @@ constraints = []
 t = 0
 while t <= time_horizon+time_delta/2:
     if t > time_horizon-time_delta/2: t = time_horizon
-    con = lambda c:  math.sqrt(speed(c[:len(c_x)], t)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], t)**2)
-    nlc = NonlinearConstraint(con, 0, max_vel)
+    # con = lambda c:  math.sqrt(speed(c[:len(c_x)], t)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], t)**2) - math.sqrt(coefficient_of_friction * gravitational_acceleration * radius(c[:len(c_x)], c[len(c_x):len(c_x)+len(c_y)], t))
+    # nlc = NonlinearConstraint(con, -np.inf, 0)
+    con = lambda c:  speed(c[:len(c_x)], t)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], t)**2
+    nlc = NonlinearConstraint(con, -np.inf, max_vel**2)
     constraints.append(nlc)
 
     t += time_delta
@@ -227,18 +231,19 @@ while t <= time_horizon+time_delta/2:
 #     t += time_delta
 
 # Track Bounds Constraints
-# t = 0
-# while t <= time_horizon+time_delta/2:
-#     if t > time_horizon-time_delta/2: t = time_horizon
-#     con = lambda c: distance_to_center(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x)+len(c_y)], t))
-#     nlc = NonlinearConstraint(con, 0, (track_width/2)-car_width)
-#     constraints.append(nlc)
-#     t += time_delta
+t = 0
+while t <= time_horizon+time_delta/2:
+    if t > time_horizon-time_delta/2: t = time_horizon
+    con = lambda c: distance_to_center(round(trajectory(c[:len(c_x)], t)), round(trajectory(c[len(c_x):len(c_x)+len(c_y)], t)))
+    nlc = NonlinearConstraint(con, 0, (track_width/2)-car_width)
+    constraints.append(nlc)
+    t += time_delta
 
 con = lambda c: find_pos_index(init_position_index, trajectory(c[:len(c_x)], time_horizon), trajectory(c[len(c_x):len(c_x)+len(c_y)], time_horizon)) - init_position_index
 nlc = NonlinearConstraint(con, min_point_horizon, max_point_horizon)
 constraints.append(nlc)
 
+control_points = []
 
 for i in range(1,31):
     print(f"***---ROUND {i}---***")
@@ -342,7 +347,7 @@ for i in range(1,31):
             y_pp = acceleration(c[len(c_x):len(c_x) + len(c_y)], t)
             sp = math.sqrt(x_p ** 2 + y_p ** 2)
             ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
-            if sp >= 0.1 and ac >= 0.1 and ((x_p * x_pp + y_p * y_pp)/(sp*ac) <= .08):
+            if sp >= 0.1 and ac >= 0.1 and ((x_p * x_pp + y_p * y_pp)/(sp*ac) <= .01):
                 return 5*gravitational_acceleration - ac
             else:
                 return get_acc_bound(sp) - ac
@@ -361,5 +366,25 @@ for i in range(1,31):
         #     print("time=", t, "acc_bound=", get_acc_bound(sp), "acc=", ac ,"constraint3_val=", con3(output), "acc_x=", acceleration(output[:len(c_x)], t), "acc_y=", acceleration(output[len(c_x):len(c_x)+len(c_y)], t))
         total_c3_val -= (min(0, con3(output)))
         t += time_delta
+    control_points.append(output)
     print("total absolute dist from center", total_d_from_center)
     print("total_constraint3_val", total_c3_val)
+
+planned_motion_x = []
+planned_motion_y = []
+
+for cp in control_points:
+    t = 0
+    while t <= time_horizon-1+time_delta/2:
+        if t > time_horizon-1-time_delta/2: t = time_horizon-1
+        x = trajectory(cp[:len(c_x)], t)
+        y = trajectory(cp[len(c_x):len(c_x) + len(c_y)], t)
+        planned_motion_x.append(x)
+        planned_motion_y.append(y)
+        t += time_delta
+
+
+plt.plot(main_track_x, main_track_y, '.r-')
+plt.plot(planned_motion_x, planned_motion_y, '.b-')
+plt.savefig("run_"+str(datetime.datetime.now()) + ".png")
+plt.show()
