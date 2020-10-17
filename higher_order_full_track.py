@@ -44,19 +44,19 @@ def find_pos_index(init_px, currx, curry):
     return min_idx
 
 
-init_dx_dt = 8.766365952000069
-init_dy_dt = 36.57445670400002
-init_d2x_dt = -10.847266560000117
-init_d2y_dt = 4.208782080000037
-init_position_index = 558
-init_x = 756.000120768 #main_track_x[init_position_index]
-init_y = 471.309551296 #main_track_y[init_position_index]
+init_dx_dt = -6.422279423999987
+init_dy_dt = -43.159778688
+init_d2x_dt = -2.2091308800000204
+init_d2y_dt = -12.558984959999952
+init_position_index = 910
+init_x = 188.51618150400003 #main_track_x[init_position_index]
+init_y = 438.184094528 #main_track_y[init_position_index]
 track_horizon = np.array([*zip(main_track_x, main_track_y)])
 line = geom.LineString(track_horizon)
 
 init_est_speed = math.sqrt(init_dx_dt**2 + init_dy_dt**2)
 
-min_point_horizon = 50 #int(max(1, init_est_speed))
+min_point_horizon = time_horizon*10 #int(max(1, init_est_speed))
 max_point_horizon = 200 #calc_max_point_horizon(init_x, init_y, init_dx_dt, init_dy_dt, init_d2x_dt, init_d2y_dt, init_position_index)
 
 bezier_order = 6
@@ -74,11 +74,11 @@ for i in range(3, bezier_order+1):
         c_x.append(c2x)
         c_y.append(c2y)
     elif i-3 == (bezier_order-3)//2:
-        c_x.append((c2x + main_track_x[init_position_index + min_point_horizon])/2)
-        c_y.append((c2y + main_track_y[init_position_index + min_point_horizon])/2)
+        c_x.append((c2x + main_track_x[(init_position_index + min_point_horizon)%len(main_track_x)])/2)
+        c_y.append((c2y + main_track_y[(init_position_index + min_point_horizon)%len(main_track_y)])/2)
     else:
-        c_x.append(main_track_x[init_position_index + min_point_horizon])
-        c_y.append(main_track_y[init_position_index + min_point_horizon])
+        c_x.append(main_track_x[(init_position_index + min_point_horizon)%len(main_track_x)])
+        c_y.append(main_track_y[(init_position_index + min_point_horizon)%len(main_track_y)])
 
 lb = [init_x, c1x, c2x]
 for i in range(3, bezier_order+1): lb.append(0)
@@ -193,10 +193,10 @@ def opt(c):
             else:
                 return min(0, 5 * gravitational_acceleration - ac)
 
-        total -= 1*con3(c)
+        total -= .8*con3(c)
         # total -= .5*ac/time_delta
-        total -= .25*sp
-        total += 1 * distance_to_center(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t))
+        total -= .15*sp
+        total += .8 * distance_to_center(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t))
         # total -= find_pos_index(init_position_index, trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x)+len(c_y)], t))/time_delta
         t += time_delta
     #             (c[len(c_x)+len(c_y)-1] - c[len(c_x)+len(c_y)-2]) * (main_track_y[position_index+point_horizon]-main_track_y[position_index+point_horizon-1])
@@ -215,7 +215,7 @@ while t <= time_horizon+time_delta/2:
     # nlc = NonlinearConstraint(con, -np.inf, 0)
     con = lambda c:  speed(c[:len(c_x)], t)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], t)**2
     nlc = NonlinearConstraint(con, -np.inf, max_vel**2)
-    constraints.append(nlc)
+    # constraints.append(nlc)
 
     # con = lambda c:  acceleration(c[:len(c_x)], t)
     # nlc = NonlinearConstraint(con, -40, 21)
@@ -322,8 +322,8 @@ print("lb=", lb)
 print("ub=", ub)
 bounds = Bounds(lb, ub)
 print(datetime.datetime.now())
-result = minimize(opt, initial, bounds=bounds, constraints=constraints, options={'disp': True, 'maxiter':2500})
-# result = basinhopping(opt, initial, minimizer_kwargs={'bounds':bounds, 'constraints':constraints})
+# result = minimize(opt, initial, bounds=bounds, constraints=constraints, options={'disp': True, 'maxiter':2500})
+result = basinhopping(opt, initial, niter=3, minimizer_kwargs={'bounds':bounds, 'constraints':constraints})
 print(datetime.datetime.now())
 
 # print(result.x)
