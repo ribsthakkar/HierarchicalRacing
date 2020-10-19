@@ -18,10 +18,11 @@ track_width = 10
 car_width = 1.6
 car_length = 5.5
 time_horizon = 5
-time_delta = time_horizon/25
+plan_time_delta = time_horizon/10
+verify_time_delta = time_horizon/25
 min_point_horizon = time_horizon*10 #int(max(1, init_est_speed))
 max_point_horizon = 200 #calc_max_point_horizon(init_x, init_y, init_dx_dt, init_dy_dt, init_d2x_dt, init_d2y_dt, init_position_index)
-bezier_order = 6
+bezier_order = 4
 num_cp = bezier_order+1
 
 main_track_x = (67, 65, 64, 64, 63, 62, 61, 61, 60, 60, 60, 59, 59, 59, 59, 59, 59, 59, 59, 59, 60, 60, 60, 61, 61, 62, 62, 63, 64, 64, 65, 66, 66, 67, 68, 69, 69, 70, 71, 72, 73, 74, 74, 75, 76, 77, 78, 79, 79, 80, 81, 82, 82, 83, 84, 84, 85, 86, 86, 87, 87, 88, 88, 88, 89, 89, 89, 90, 90, 90, 90, 90, 90, 90, 91, 91, 91, 91, 91, 91, 91, 90, 90, 90, 90, 90, 90, 90, 90, 90, 89, 89, 89, 89, 89, 89, 88, 88, 88, 88, 88, 88, 88, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 88, 88, 88, 88, 89, 89, 89, 90, 90, 91, 91, 92, 92, 93, 93, 94, 95, 96, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 107, 108, 109, 110, 112, 113, 114, 116, 117, 119, 120, 122, 123, 125, 127, 128, 130, 132, 133, 135, 137, 139, 141, 143, 144, 146, 148, 150, 152, 154, 156, 158, 160, 163, 165, 167, 169, 171, 173, 176, 178, 180, 182, 185, 187, 189, 192, 194, 196, 199, 201, 204, 206, 208, 211, 213, 216, 218, 221, 223, 226, 228, 231, 233, 236, 239, 241, 244, 246, 249, 251, 254, 257, 259, 262, 265, 267, 270, 272, 275, 278, 280, 283, 286, 288, 291, 293, 296, 299, 301, 304, 307, 309, 312, 314, 317, 320, 322, 325, 327, 330, 332, 335, 338, 340, 343, 345, 348, 350, 353, 355, 358, 360, 363, 365, 367, 370, 372, 375, 377, 379, 382, 384, 386, 389, 391, 393, 396, 398, 400, 402, 405, 407, 409, 411, 413, 415, 418, 420, 422, 424, 426, 428, 430, 432, 434, 436, 438, 439, 441, 443, 445, 447, 449, 450, 452, 454, 456, 457, 459, 460, 462, 464, 465, 467, 468, 470, 471, 472, 474, 475, 476, 478, 479, 480, 481, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 494, 495, 496, 497, 498, 498, 499, 500, 501, 501, 502, 503, 503, 504, 504, 505, 506, 506, 507, 507, 508, 508, 509, 509, 510, 510, 511, 511, 512, 512, 513, 513, 514, 514, 514, 515, 515, 516, 516, 517, 517, 518, 518, 518, 519, 519, 520, 520, 521, 521, 522, 522, 523, 523, 524, 524, 525, 526, 526, 527, 527, 528, 529, 529, 530, 531, 531, 532, 533, 534, 534, 535, 536, 537, 538, 539, 539, 540, 541, 542, 543, 544, 545, 547, 548, 549, 550, 551, 552, 554, 555, 556, 557, 559, 560, 561, 563, 564, 566, 567, 568, 570, 571, 573, 574, 576, 577, 579, 580, 582, 584, 585, 587, 588, 590, 592, 593, 595, 597, 598, 600, 602, 604, 605, 607, 609, 611, 612, 614, 616, 618, 619, 621, 623, 625, 627, 628, 630, 632, 634, 636, 638, 639, 641, 643, 645, 647, 649, 650, 652, 654, 656, 658, 659, 661, 663, 665, 667, 668, 670, 672, 674, 676, 677, 679, 681, 683, 684, 686, 688, 689, 691, 693, 695, 696, 698, 699, 701, 703, 704, 706, 707, 709, 711, 712, 714, 715, 717, 718, 720, 721, 722, 724, 725, 727, 728, 729, 731, 732, 733, 734, 736, 737, 738, 739, 740, 741, 742, 743, 744, 746, 746, 747, 748, 749, 750, 751, 752, 753, 753, 754, 755, 755, 756, 756, 757, 757, 758, 758, 758, 759, 759, 759, 759, 759, 759, 759, 759, 759, 759, 758, 758, 758, 757, 757, 756, 755, 755, 754, 753, 752, 751, 750, 748, 747, 746, 744, 743, 741, 740, 738, 736, 734, 733, 731, 729, 727, 725, 723, 721, 718, 716, 714, 712, 710, 707, 705, 703, 700, 698, 696, 693, 691, 689, 686, 684, 682, 679, 677, 675, 673, 670, 668, 666, 664, 662, 660, 657, 655, 653, 651, 649, 647, 645, 643, 641, 640, 638, 636, 634, 632, 630, 628, 627, 625, 623, 621, 620, 618, 616, 614, 613, 611, 609, 608, 606, 604, 603, 601, 599, 598, 596, 595, 593, 591, 590, 588, 587, 585, 583, 582, 580, 578, 577, 575, 574, 572, 570, 569, 567, 565, 564, 562, 560, 559, 557, 555, 554, 552, 550, 549, 547, 545, 544, 542, 540, 538, 537, 535, 533, 531, 530, 528, 526, 524, 523, 521, 519, 517, 515, 514, 512, 510, 508, 506, 504, 503, 501, 499, 497, 495, 493, 491, 490, 488, 486, 484, 482, 480, 478, 476, 474, 472, 470, 468, 466, 465, 463, 461, 459, 457, 455, 453, 451, 449, 447, 445, 443, 441, 439, 436, 434, 432, 430, 428, 426, 424, 422, 420, 418, 416, 414, 412, 409, 407, 405, 403, 401, 399, 397, 394, 392, 390, 388, 386, 384, 381, 379, 377, 375, 372, 370, 368, 366, 364, 361, 359, 357, 354, 352, 350, 348, 345, 343, 341, 338, 336, 334, 331, 329, 327, 325, 322, 320, 318, 315, 313, 311, 308, 306, 304, 302, 299, 297, 295, 293, 290, 288, 286, 284, 282, 280, 277, 275, 273, 271, 269, 267, 265, 263, 261, 259, 257, 255, 253, 251, 249, 247, 246, 244, 242, 240, 239, 237, 235, 234, 232, 231, 229, 228, 226, 225, 223, 222, 221, 219, 218, 217, 216, 214, 213, 212, 211, 210, 209, 208, 207, 207, 206, 205, 204, 204, 203, 202, 202, 201, 200, 200, 199, 199, 198, 198, 197, 197, 196, 196, 196, 195, 195, 195, 194, 194, 194, 193, 193, 193, 192, 192, 192, 192, 191, 191, 191, 190, 190, 190, 190, 189, 189, 189, 188, 188, 188, 187, 187, 186, 186, 186, 185, 185, 184, 184, 183, 183, 182, 181, 181, 180, 179, 179, 178, 177, 176, 175, 174, 173, 172, 171, 170, 169, 168, 167, 166, 164, 163, 162, 160, 159, 157, 156, 154, 152, 151, 149, 147, 145, 143, 141, 139, 137, 135, 133, 131, 128, 126, 124, 121, 119, 117, 115, 112, 110, 108, 105, 103, 101, 99, 96, 94, 92, 90, 88, 86, 84, 82, 80, 78, 77, 75, 73, 72, 70, 69, 68, 66)
@@ -57,7 +58,6 @@ def find_pos_index(init_px, currx, curry):
             min_idx = i
     return min_idx
 
-print("min_pt_hz", min_point_horizon, "max_pt_hz", max_point_horizon)
 
 @lru_cache(maxsize=None)
 def comb(n,r):
@@ -204,8 +204,8 @@ def single_car_optimize(x, y, dx, dy, d2x, d2y, ipx, other_car_trajectories=None
     def opt(c):
         total = 0
         t = 0
-        while t <= time_horizon + time_delta / 2:
-            if t > time_horizon - time_delta / 2: t = time_horizon
+        while t <= time_horizon + plan_time_delta / 2:
+            if t > time_horizon - plan_time_delta / 2: t = time_horizon
             x_p = speed(c[:len(c_x)], t)
             x_pp = acceleration(c[:len(c_x)], t)
             y_p = speed(c[len(c_x):len(c_x) + len(c_y)], t)
@@ -223,31 +223,120 @@ def single_car_optimize(x, y, dx, dy, d2x, d2y, ipx, other_car_trajectories=None
                 for o in other_car_trajectories:
                     con4 = lambda c: dist(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t),
                                          trajectory(o[:len(c_x)], t), trajectory(o[len(c_x):len(c_x) + len(c_y)], t))
-                    total -= 10 * min(0, con4(c) - (car_width/2 + .5))
-            total -= 2 * con3(c)
+                    total -= (30/len(other_car_trajectories)) * min(0, con4(c) - (car_width/2 + .5))
+            total -= 2  * con3(c)
             # total -= .5*ac/time_delta
-            total -= .5 * sp
+            total -= .1 * sp
             total += 2 * distance_to_center(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t))
-            t += time_delta
+            # total -= find_pos_index(init_position_index, round(trajectory(c[:len(c_x)], t)), round(trajectory(c[len(c_x):len(c_x)+len(c_y)], t))) - init_position_index
+            t += plan_time_delta
         if other_car_trajectories:
             for o, ipx2 in zip(other_car_trajectories, other_car_ipx):
-                total -= 30 * (find_pos_index(ipx, trajectory(c[:len(c_x)], time_horizon), trajectory(c[len(c_x):len(c_x) + len(c_y)], time_horizon)) -
-                               find_pos_index(ipx2, trajectory(o[:len(c_x)], time_horizon), trajectory(o[len(c_x):len(c_x) + len(c_y)], time_horizon)))
+                total -= (30/len(other_car_trajectories)) * (find_pos_index(ipx, trajectory(c[:len(c_x)], time_horizon),
+                                              trajectory(c[len(c_x):len(c_x) + len(c_y)], time_horizon)) -
+                               find_pos_index(ipx2, trajectory(o[:len(c_x)], time_horizon),
+                                              trajectory(o[len(c_x):len(c_x) + len(c_y)], time_horizon)))
+        # total -= 5 * (find_pos_index(init_position_index, trajectory(c[:len(c_x)], time_horizon),
+        #                              trajectory(c[len(c_x):len(c_x) + len(c_y)], time_horizon)) - init_position_index)
+        # total -= 0.5*arc_length(c[:len(c_x)], c[len(c_x):len(c_x)+len(c_y)])
         return total
 
     constraints = []
+
     # Speed Constraints
     t = 0
-    while t <= time_horizon + time_delta / 2:
-        if t > time_horizon - time_delta / 2: t = time_horizon
+    while t <= time_horizon + plan_time_delta / 2:
+        if t > time_horizon - plan_time_delta / 2: t = time_horizon
+        # con = lambda c:  math.sqrt(speed(c[:len(c_x)], t)**2 + speed(c[len(c_x):len(c_x)+len(c_y)], t)**2) - math.sqrt(coefficient_of_friction * gravitational_acceleration * radius(c[:len(c_x)], c[len(c_x):len(c_x)+len(c_y)], t))
+        # nlc = NonlinearConstraint(con, -np.inf, 0)
         con = lambda c: speed(c[:len(c_x)], t) ** 2 + speed(c[len(c_x):len(c_x) + len(c_y)], t) ** 2
         nlc = NonlinearConstraint(con, -np.inf, max_vel ** 2)
         constraints.append(nlc)
 
-        t += time_delta
+        t += plan_time_delta
+
+    t = plan_time_delta
+    while t <= time_horizon + plan_time_delta / 2:
+        if t > time_horizon - plan_time_delta / 2: t = time_horizon
+        con = lambda c: find_pos_index(init_position_index, round(trajectory(c[:len(c_x)], t)),
+                                       round(trajectory(c[len(c_x):len(c_x) + len(c_y)], t))) \
+                        - find_pos_index(init_position_index, round(trajectory(c[:len(c_x)], t - plan_time_delta)),
+                                         round(trajectory(c[len(c_x):len(c_x) + len(c_y)], t - plan_time_delta)))
+        nlc = NonlinearConstraint(con, int(plan_time_delta * 10), np.inf)
+        constraints.append(nlc)
+        t += plan_time_delta
+
+    # # Acceleration Constraints
+    # t = 0
+    # while t <= time_horizon+plan_time_delta/2:
+    #     if t > time_horizon-plan_time_delta/2: t = time_horizon
+    #     def con(c):
+    #         x_p = speed(c[:len(c_x)], t)
+    #         x_pp = acceleration(c[:len(c_x)], t)
+    #         y_p = speed(c[len(c_x):len(c_x) + len(c_y)], t)
+    #         y_pp = acceleration(c[len(c_x):len(c_x) + len(c_y)], t)
+    #         sp = math.sqrt(x_p ** 2 + y_p ** 2)
+    #         ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
+    #         if sp >= 0.01 and ((x_p * x_pp + y_p * y_pp)/(sp*ac) <= .08):
+    #             return 5*gravitational_acceleration - ac
+    #         else:
+    #             # if 0 <= sp <= 200/3.6: return 21 - ac
+    #             # elif 200/3.6 <= sp <= 300/3.6: return 10 - ac
+    #             # else: return 5 - ac
+    #             return -0.1803 * sp + 21.008 - math.sqrt(x_pp ** 2 + y_pp ** 2)
+    #     nlc = NonlinearConstraint(con, 0, np.inf)
+    #     constraints.append(nlc)
+    #     t += plan_time_delta
+
+    # Track Bounds Constraints
     t = 0
-    while t <= time_horizon + time_delta / 2:
-        if t > time_horizon - time_delta / 2: t = time_horizon
+    while t <= time_horizon + plan_time_delta / 2:
+        if t > time_horizon - plan_time_delta / 2: t = time_horizon
+        con = lambda c: distance_to_center(round(trajectory(c[:len(c_x)], t)),
+                                           round(trajectory(c[len(c_x):len(c_x) + len(c_y)], t)))
+        nlc = NonlinearConstraint(con, 0, (track_width / 2) - car_width)
+        constraints.append(nlc)
+        if other_car_trajectories:
+            for o in other_car_trajectories:
+                con = lambda c: dist(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t),
+                                     trajectory(o[:len(c_x)], t), trajectory(o[len(c_x):len(c_x) + len(c_y)], t))
+                nlc = NonlinearConstraint(con, car_width / 2 + .5, np.inf)
+                constraints.append(nlc)
+        t += plan_time_delta
+
+    A = []
+    for i in range(len(c_x) - 1):
+        A.append([0.0] * len(c))
+        A[-1][i] = -1.0
+        A[-1][i + 1] = 1.0
+    for i in range(len(c_x), len(c_x) + len(c_y) - 1):
+        A.append([0.0] * len(c))
+        A[-1][i] = -1.0
+        A[-1][i + 1] = 1.0
+    # print(A)
+    lc = LinearConstraint(A, -(max_vel * time_horizon) / bezier_order, (max_vel * time_horizon) / bezier_order)
+    constraints.append(lc)
+
+    for i in range(len(c_x) - 2):
+        A.append([0.0] * len(c))
+        A[-1][i] = 1.0
+        A[-1][i + 1] = -2.0
+        A[-1][i + 2] = 1.0
+    for i in range(len(c_x), len(c_x) + len(c_y) - 2):
+        A.append([0.0] * len(c))
+        A[-1][i] = 1.0
+        A[-1][i + 1] = -2.0
+        A[-1][i + 2] = 1.0
+    # print(A)
+    lc = LinearConstraint(A, -(5 * gravitational_acceleration * time_horizon * time_horizon) / (
+                bezier_order * (bezier_order - 1)),
+                          (5 * gravitational_acceleration * time_horizon * time_horizon) / (
+                                      bezier_order * (bezier_order - 1)))
+    constraints.append(lc)
+
+    t = 0
+    while t <= time_horizon + plan_time_delta / 2:
+        if t > time_horizon - plan_time_delta / 2: t = time_horizon
 
         def con(c):
             x_p = speed(c[:len(c_x)], t)
@@ -259,22 +348,8 @@ def single_car_optimize(x, y, dx, dy, d2x, d2y, ipx, other_car_trajectories=None
 
         nlc = NonlinearConstraint(con, -30, 30)
         constraints.append(nlc)
-        t += time_delta
-    # Track Bounds Constraints
-    t = 0
-    while t <= time_horizon + time_delta / 2:
-        if t > time_horizon - time_delta / 2: t = time_horizon
-        con = lambda c: distance_to_center(round(trajectory(c[:len(c_x)], t)),
-                                           round(trajectory(c[len(c_x):len(c_x) + len(c_y)], t)))
-        nlc = NonlinearConstraint(con, 0, (track_width / 2) - (car_width/2))
-        constraints.append(nlc)
-        if other_car_trajectories:
-            for o in other_car_trajectories:
-                con = lambda c: dist(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t),
-                                     trajectory(o[:len(c_x)], t), trajectory(o[len(c_x):len(c_x) + len(c_y)], t))
-                nlc = NonlinearConstraint(con, car_width/2 + .5, np.inf)
-                constraints.append(nlc)
-        t += time_delta
+        t += plan_time_delta
+
     con = lambda c: find_pos_index(init_position_index, trajectory(c[:len(c_x)], time_horizon),
                                    trajectory(c[len(c_x):len(c_x) + len(c_y)], time_horizon)) - init_position_index
     nlc = NonlinearConstraint(con, min_point_horizon, max_point_horizon)
@@ -289,8 +364,8 @@ def single_car_optimize(x, y, dx, dy, d2x, d2y, ipx, other_car_trajectories=None
     print("init ub=", ub)
     bounds = Bounds(lb, ub)
     print(datetime.datetime.now())
-    result = minimize(opt, initial, bounds=bounds, constraints=constraints, options={'disp': True, 'maxiter':2500})
-    # result = basinhopping(opt, initial, niter=3, minimizer_kwargs={'bounds': bounds, 'constraints': constraints, 'options': {'maxiter': 10}})
+    # result = minimize(opt, initial, bounds=bounds, constraints=constraints, options={'disp': True, 'maxiter':2500})
+    result = basinhopping(opt, initial, niter=3, minimizer_kwargs={'bounds': bounds, 'constraints': constraints, 'options': {'maxiter': 10}})
     print(datetime.datetime.now())
     output = [round(x, 3) for x in result.x]
 
@@ -300,22 +375,22 @@ def single_car_optimize(x, y, dx, dy, d2x, d2y, ipx, other_car_trajectories=None
     print("N", output[-1])
     print("trajectory distance:",
           arc_length(output[:len(c_x)], output[len(c_x):len(c_x) + len(c_y)], time_horizon=time_horizon))
-    total_d_from_center = 0
+
     t = 0
-    while t <= time_horizon + time_delta / 2:
-        if t > time_horizon - time_delta / 2: t = time_horizon
+    while t <= time_horizon + verify_time_delta / 2:
+        if t > time_horizon - verify_time_delta / 2: t = time_horizon
         if other_car_trajectories:
             for o in other_car_trajectories:
                 con = lambda c: dist(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t),
                                      trajectory(o[:len(c_x)], t), trajectory(o[len(c_x):len(c_x) + len(c_y)], t))
                 
-                # print()
                 print("time=", t, "Dist to other car=", con(output))
-        t += time_delta
+        t += verify_time_delta
     total_c3_val = 0
+
     t = 0
-    while t <= time_horizon + time_delta / 2:
-        if t > time_horizon - time_delta / 2: t = time_horizon
+    while t <= time_horizon + verify_time_delta / 2:
+        if t > time_horizon - verify_time_delta / 2: t = time_horizon
 
         def con3(c):
             x_p = speed(c[:len(c_x)], t)
@@ -341,10 +416,9 @@ def single_car_optimize(x, y, dx, dy, d2x, d2y, ipx, other_car_trajectories=None
         # else:
         #     print("time=", t, "acc_bound=", get_acc_bound(sp), "acc=", ac ,"constraint3_val=", con3(output), "acc_x=", acceleration(output[:len(c_x)], t), "acc_y=", acceleration(output[len(c_x):len(c_x)+len(c_y)], t))
         total_c3_val -= (min(0, con3(output)))
-        t += time_delta
+        t += verify_time_delta
         return output
 
-print(car_width/2 + .5)
 def two_car_optimize(x1, y1, dx1, dy1, d2x1, d2y1, ipx1, x2, y2, dx2, dy2, d2x2, d2y2, ipx2):
     print("OPPONENT CAR")
     opponent_best = single_car_optimize(x2, y2, dx2, dy2, d2x2, d2y2, ipx2)
@@ -367,13 +441,13 @@ def two_car_optimize(x1, y1, dx1, dy1, d2x1, d2y1, ipx1, x2, y2, dx2, dy2, d2x2,
     op_y = []
     t = 0
 
-    while t <= time_horizon + time_delta / 2:
-        if t > time_horizon - time_delta / 2: t = time_horizon
+    while t <= time_horizon + verify_time_delta / 2:
+        if t > time_horizon - verify_time_delta / 2: t = time_horizon
         us_x.append(trajectory(our_best[:num_cp], t))
         us_y.append(trajectory(our_best[num_cp:num_cp*2], t))
         op_x.append(trajectory(opponent_best[:num_cp], t))
         op_y.append(trajectory(opponent_best[num_cp:num_cp*2], t))
-        t += time_delta
+        t += verify_time_delta
 
     plt.plot(track_boundary1_x, track_boundary1_y, '.k-', label="Track Boundary Right")
     plt.plot(track_boundary2_x, track_boundary2_y, '.k-', label="Track Boundary Left")
@@ -388,7 +462,7 @@ car1_y = 350
 car1_dx = 0
 car1_dy = 0
 car1_d2x = -6
-car1_d2y = -3
+car1_d2y = 0
 
 
 ipx2 = 0
@@ -397,7 +471,9 @@ car2_y = 350
 car2_dx = 0
 car2_dy = 0
 car2_d2x = -2
-car2_d2y = -1
+car2_d2y = 0
+min_point_horizon = int(min(min_point_horizon, 0.5*(time_horizon**2)*min(math.sqrt(car1_d2x**2 + car1_d2y**2), math.sqrt(car2_d2x**2 + car2_d2y**2))))
 
+print("min_pt_hz", min_point_horizon, "max_pt_hz", max_point_horizon)
 two_car_optimize(car1_x, car1_y, car1_dx, car1_dy, car1_d2x, car1_d2y, ipx1,
                  car2_x, car2_y, car2_dx, car2_dy, car2_d2x, car2_d2y, ipx2)
