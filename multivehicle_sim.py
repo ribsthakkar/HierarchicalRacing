@@ -31,7 +31,7 @@ plan_time_delta = time_horizon/10
 verify_time_delta = time_horizon/25  # must be less than or equal to plan_time_delta
 base_min_point_horizon = time_horizon*10
 base_max_point_horizon = 200
-bezier_order = 5
+bezier_order = 6
 num_cp = bezier_order+1
 main_track_x = (67, 65, 64, 64, 63, 62, 61, 61, 60, 60, 60, 59, 59, 59, 59, 59, 59, 59, 59, 59, 60, 60, 60, 61, 61, 62, 62, 63, 64, 64, 65, 66, 66, 67, 68, 69, 69, 70, 71, 72, 73, 74, 74, 75, 76, 77, 78, 79, 79, 80, 81, 82, 82, 83, 84, 84, 85, 86, 86, 87, 87, 88, 88, 88, 89, 89, 89, 90, 90, 90, 90, 90, 90, 90, 91, 91, 91, 91, 91, 91, 91, 90, 90, 90, 90, 90, 90, 90, 90, 90, 89, 89, 89, 89, 89, 89, 88, 88, 88, 88, 88, 88, 88, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 88, 88, 88, 88, 89, 89, 89, 90, 90, 91, 91, 92, 92, 93, 93, 94, 95, 96, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 107, 108, 109, 110, 112, 113, 114, 116, 117, 119, 120, 122, 123, 125, 127, 128, 130, 132, 133, 135, 137, 139, 141, 143, 144, 146, 148, 150, 152, 154, 156, 158, 160, 163, 165, 167, 169, 171, 173, 176, 178, 180, 182, 185, 187, 189, 192, 194, 196, 199, 201, 204, 206, 208, 211, 213, 216, 218, 221, 223, 226, 228, 231, 233, 236, 239, 241, 244, 246, 249, 251, 254, 257, 259, 262, 265, 267, 270, 272, 275, 278, 280, 283, 286, 288, 291, 293, 296, 299, 301, 304, 307, 309, 312, 314, 317, 320, 322, 325, 327, 330, 332, 335, 338, 340, 343, 345, 348, 350, 353, 355, 358, 360, 363, 365, 367, 370, 372, 375, 377, 379, 382, 384, 386, 389, 391, 393, 396, 398, 400, 402, 405, 407, 409, 411, 413, 415, 418, 420, 422, 424, 426, 428, 430, 432, 434, 436, 438, 439, 441, 443, 445, 447, 449, 450, 452, 454, 456, 457, 459, 460, 462, 464, 465, 467, 468, 470, 471, 472, 474, 475, 476, 478, 479, 480, 481, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 494, 495, 496, 497, 498, 498, 499, 500, 501, 501, 502, 503, 503, 504, 504, 505, 506, 506, 507, 507, 508, 508, 509, 509, 510, 510, 511, 511, 512, 512, 513, 513, 514, 514, 514, 515, 515, 516, 516, 517, 517, 518, 518, 518, 519, 519, 520, 520, 521, 521, 522, 522, 523, 523, 524, 524, 525, 526, 526, 527, 527, 528, 529, 529, 530, 531, 531, 532, 533, 534, 534, 535, 536, 537, 538, 539, 539, 540, 541, 542, 543, 544, 545, 547, 548, 549, 550, 551, 552, 554, 555, 556, 557, 559, 560, 561, 563, 564, 566, 567, 568, 570, 571, 573, 574, 576, 577, 579, 580, 582, 584, 585, 587, 588, 590, 592, 593, 595, 597, 598, 600, 602, 604, 605, 607, 609, 611, 612, 614, 616, 618, 619, 621, 623, 625, 627, 628, 630, 632, 634, 636, 638, 639, 641, 643, 645, 647, 649, 650, 652, 654, 656, 658, 659, 661, 663, 665, 667, 668, 670, 672, 674, 676, 677, 679, 681, 683, 684, 686, 688, 689, 691, 693, 695, 696, 698, 699, 701, 703, 704, 706, 707, 709, 711, 712, 714, 715, 717, 718, 720, 721, 722, 724, 725, 727, 728, 729, 731, 732, 733, 734, 736, 737, 738, 739, 740, 741, 742, 743, 744, 746, 746, 747, 748, 749, 750, 751, 752, 753, 753, 754, 755, 755, 756, 756, 757, 757, 758, 758, 758, 759, 759, 759, 759, 759, 759, 759, 759, 759, 759, 758, 758, 758, 757, 757, 756, 755, 755, 754, 753, 752, 751, 750, 748, 747, 746, 744, 743, 741, 740, 738, 736, 734, 733, 731, 729, 727, 725, 723, 721, 718, 716, 714, 712, 710, 707, 705, 703, 700, 698, 696, 693, 691, 689, 686, 684, 682, 679, 677, 675, 673, 670, 668, 666, 664, 662, 660, 657, 655, 653, 651, 649, 647, 645, 643, 641, 640, 638, 636, 634, 632, 630, 628, 627, 625, 623, 621, 620, 618, 616, 614, 613, 611, 609, 608, 606, 604, 603, 601, 599, 598, 596, 595, 593, 591, 590, 588, 587, 585, 583, 582, 580, 578, 577, 575, 574, 572, 570, 569, 567, 565, 564, 562, 560, 559, 557, 555, 554, 552, 550, 549, 547, 545, 544, 542, 540, 538, 537, 535, 533, 531, 530, 528, 526, 524, 523, 521, 519, 517, 515, 514, 512, 510, 508, 506, 504, 503, 501, 499, 497, 495, 493, 491, 490, 488, 486, 484, 482, 480, 478, 476, 474, 472, 470, 468, 466, 465, 463, 461, 459, 457, 455, 453, 451, 449, 447, 445, 443, 441, 439, 436, 434, 432, 430, 428, 426, 424, 422, 420, 418, 416, 414, 412, 409, 407, 405, 403, 401, 399, 397, 394, 392, 390, 388, 386, 384, 381, 379, 377, 375, 372, 370, 368, 366, 364, 361, 359, 357, 354, 352, 350, 348, 345, 343, 341, 338, 336, 334, 331, 329, 327, 325, 322, 320, 318, 315, 313, 311, 308, 306, 304, 302, 299, 297, 295, 293, 290, 288, 286, 284, 282, 280, 277, 275, 273, 271, 269, 267, 265, 263, 261, 259, 257, 255, 253, 251, 249, 247, 246, 244, 242, 240, 239, 237, 235, 234, 232, 231, 229, 228, 226, 225, 223, 222, 221, 219, 218, 217, 216, 214, 213, 212, 211, 210, 209, 208, 207, 207, 206, 205, 204, 204, 203, 202, 202, 201, 200, 200, 199, 199, 198, 198, 197, 197, 196, 196, 196, 195, 195, 195, 194, 194, 194, 193, 193, 193, 192, 192, 192, 192, 191, 191, 191, 190, 190, 190, 190, 189, 189, 189, 188, 188, 188, 187, 187, 186, 186, 186, 185, 185, 184, 184, 183, 183, 182, 181, 181, 180, 179, 179, 178, 177, 176, 175, 174, 173, 172, 171, 170, 169, 168, 167, 166, 164, 163, 162, 160, 159, 157, 156, 154, 152, 151, 149, 147, 145, 143, 141, 139, 137, 135, 133, 131, 128, 126, 124, 121, 119, 117, 115, 112, 110, 108, 105, 103, 101, 99, 96, 94, 92, 90, 88, 86, 84, 82, 80, 78, 77, 75, 73, 72, 70, 69, 68, 66)
 main_track_y = (343, 343, 342, 341, 340, 339, 338, 336, 335, 334, 332, 331, 330, 328, 326, 325, 323, 322, 320, 318, 316, 314, 312, 310, 309, 307, 304, 302, 300, 298, 296, 294, 291, 289, 287, 285, 282, 280, 278, 275, 273, 270, 268, 265, 263, 260, 258, 255, 253, 250, 248, 245, 243, 240, 237, 235, 232, 230, 227, 224, 222, 219, 217, 214, 212, 209, 206, 204, 201, 199, 196, 194, 191, 189, 186, 184, 181, 179, 176, 174, 171, 169, 167, 164, 162, 160, 157, 155, 153, 150, 148, 146, 144, 141, 139, 137, 135, 133, 131, 129, 126, 124, 122, 120, 118, 117, 115, 113, 111, 109, 107, 106, 104, 102, 100, 99, 97, 96, 94, 92, 91, 90, 88, 87, 85, 84, 83, 82, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 71, 70, 69, 69, 68, 67, 67, 66, 66, 65, 65, 64, 64, 63, 63, 63, 63, 62, 62, 62, 62, 62, 61, 61, 61, 61, 61, 61, 61, 61, 61, 62, 62, 62, 62, 62, 62, 62, 63, 63, 63, 63, 64, 64, 64, 65, 65, 65, 66, 66, 66, 67, 67, 67, 68, 68, 69, 69, 70, 70, 70, 71, 71, 72, 72, 73, 73, 74, 74, 74, 75, 75, 76, 76, 77, 77, 78, 78, 78, 79, 79, 80, 80, 80, 81, 81, 81, 82, 82, 82, 83, 83, 83, 84, 84, 84, 84, 85, 85, 85, 85, 85, 85, 85, 85, 85, 86, 86, 86, 85, 85, 85, 85, 85, 85, 85, 85, 85, 84, 84, 84, 84, 84, 83, 83, 83, 83, 82, 82, 82, 82, 82, 81, 81, 81, 81, 80, 80, 80, 80, 79, 79, 79, 79, 79, 78, 78, 78, 78, 78, 78, 78, 78, 77, 77, 77, 77, 77, 78, 78, 78, 78, 78, 78, 78, 79, 79, 79, 79, 80, 80, 81, 81, 82, 82, 83, 83, 84, 84, 85, 86, 87, 88, 88, 89, 90, 91, 92, 94, 95, 96, 97, 98, 100, 101, 102, 104, 105, 107, 108, 110, 112, 113, 115, 116, 118, 120, 122, 124, 125, 127, 129, 131, 133, 135, 137, 139, 141, 143, 145, 147, 149, 151, 153, 155, 158, 160, 162, 164, 166, 169, 171, 173, 175, 177, 180, 182, 184, 186, 189, 191, 193, 195, 198, 200, 202, 205, 207, 209, 211, 214, 216, 218, 220, 222, 225, 227, 229, 231, 233, 235, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 263, 265, 267, 269, 271, 272, 274, 276, 277, 279, 281, 282, 284, 285, 287, 288, 290, 291, 293, 294, 296, 297, 298, 300, 301, 302, 304, 305, 306, 308, 309, 310, 311, 312, 314, 315, 316, 317, 318, 319, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 365, 366, 367, 368, 369, 370, 371, 372, 374, 375, 376, 377, 378, 380, 381, 382, 384, 385, 386, 388, 389, 390, 392, 393, 394, 396, 397, 399, 400, 402, 403, 405, 407, 408, 410, 411, 413, 415, 417, 418, 420, 422, 424, 426, 427, 429, 431, 433, 435, 437, 439, 442, 444, 446, 448, 450, 452, 455, 457, 459, 461, 464, 466, 468, 471, 473, 475, 478, 480, 482, 484, 487, 489, 491, 493, 495, 497, 500, 502, 504, 506, 508, 510, 511, 513, 515, 517, 519, 520, 522, 523, 525, 526, 527, 529, 530, 531, 532, 533, 534, 535, 535, 536, 537, 537, 538, 538, 539, 539, 539, 539, 540, 540, 540, 540, 540, 540, 540, 540, 539, 539, 539, 538, 538, 538, 537, 537, 536, 535, 535, 534, 534, 533, 532, 531, 530, 530, 529, 528, 527, 526, 525, 524, 523, 522, 521, 520, 519, 518, 517, 515, 514, 513, 512, 511, 510, 509, 507, 506, 505, 504, 503, 502, 500, 499, 498, 497, 496, 495, 494, 492, 491, 490, 489, 488, 487, 486, 485, 484, 483, 482, 482, 481, 480, 479, 478, 478, 477, 476, 476, 475, 474, 474, 473, 473, 473, 472, 472, 472, 471, 471, 471, 471, 470, 470, 470, 470, 470, 470, 470, 470, 470, 470, 471, 471, 471, 471, 471, 472, 472, 472, 473, 473, 473, 474, 474, 475, 475, 476, 476, 477, 477, 478, 479, 479, 480, 480, 481, 482, 483, 483, 484, 485, 486, 486, 487, 488, 489, 490, 491, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 551, 552, 553, 554, 555, 555, 556, 557, 558, 558, 559, 560, 560, 561, 561, 562, 562, 563, 563, 564, 564, 564, 564, 565, 565, 565, 565, 565, 565, 565, 565, 565, 565, 565, 565, 564, 564, 564, 563, 563, 562, 562, 561, 560, 560, 559, 558, 557, 556, 555, 554, 553, 552, 550, 549, 547, 546, 544, 543, 541, 539, 538, 536, 534, 532, 530, 528, 526, 524, 522, 520, 518, 516, 514, 512, 510, 508, 506, 503, 501, 499, 497, 494, 492, 490, 488, 485, 483, 481, 478, 476, 474, 471, 469, 467, 464, 462, 460, 457, 455, 453, 450, 448, 446, 443, 441, 439, 436, 434, 432, 430, 427, 425, 423, 421, 419, 417, 414, 412, 410, 408, 406, 404, 402, 400, 398, 396, 394, 393, 391, 389, 387, 386, 384, 382, 381, 379, 377, 376, 374, 373, 372, 370, 369, 368, 367, 365, 364, 363, 362, 361, 360, 360, 359, 358, 357, 357, 356, 356, 355, 355, 354, 354, 354, 353, 353, 353, 353, 352, 352, 352, 352, 352, 351, 351, 351, 351, 351, 351, 351, 350, 350, 350, 350, 349, 349, 349, 348, 348, 347, 347, 346, 346, 345, 344, 344)
@@ -111,15 +111,17 @@ def f1_acc_bound(sp):
 
 
 class Car:
-    def __init__(self):
-        self.ipx = None
-        self.x = None
-        self.y = None
-        self.dx = None
-        self.dy = None
-        self.d2x = None
-        self.d2y = None
-        self.acceleration_bound = None
+    def __init__(self, x, y, dx, dy, d2x, d2y, ipx, acc_bound):
+        self.ipx = ipx
+        self.x = x
+        self.y = y
+        self.dx = dx
+        self.dy = dy
+        self.d2x = d2x
+        self.d2y = d2y
+        self.acceleration_bound = acc_bound
+        self.horizon_increment = 5
+        self.final_cp = ([self.x] * num_cp) + ([self.y] * num_cp) + ([25])
 
 
     @lru_cache(maxsize=100)
@@ -175,16 +177,18 @@ class Car:
         self.track_horizon = geom.LineString(circ_slice(track_coords, init_position_index, 200))
 
     def take_step(self, x):
-        self.min_point_horizon += 5
-        c_x = [self.x, self.dx, self.d2x]
-        c_y = [self.y, self.dy, self.d2y]
+        self.min_point_horizon += self.horizon_increment
+        c_x = [self.x, x[1], x[2]]
+        c_y = [self.y, x[1+num_cp], x[2+num_cp]]
+        c2x = x[2]
+        c2y = x[2+num_cp]
         for i in range(3, num_cp):
             if i - 3 < (bezier_order - 3) // 2:
-                c_x.append(self.d2x)
-                c_y.append(self.d2x)
+                c_x.append(c2x)
+                c_y.append(c2y)
             elif i - 3 == (bezier_order - 3) // 2:
-                c_x.append((self.d2x + main_track_x[self.ipx + self.min_point_horizon]) / 2)
-                c_y.append((self.d2x + main_track_y[self.ipx + self.min_point_horizon]) / 2)
+                c_x.append((c2x + main_track_x[self.ipx + self.min_point_horizon]) / 2)
+                c_y.append((c2y + main_track_y[self.ipx + self.min_point_horizon]) / 2)
             else:
                 c_x.append(main_track_x[self.ipx + self.min_point_horizon])
                 c_y.append(main_track_y[self.ipx + self.min_point_horizon])
@@ -200,7 +204,7 @@ class Car:
         c_y = self.initial[num_cp:num_cp*2]
         def opt(c):
             total = 0
-            t = 0
+            t = plan_time_delta
             while t <= time_horizon + plan_time_delta / 2:
                 if t > time_horizon - plan_time_delta / 2: t = time_horizon
                 x_p = speed(c[:num_cp], t)
@@ -222,34 +226,18 @@ class Car:
                                               trajectory(c[num_cp:num_cp*2], t),
                                               trajectory(o.final_cp[:num_cp], t),
                                               trajectory(o.final_cp[num_cp:num_cp*2], t))
-                        total -= (1 / len(opponent_cars)) * min(0, con4(c) - (car_width / 2 + .5))
-                # con2 = lambda c: find_pos_index(self.ipx, round(trajectory(c[:len(c_x)], t)),
-                #                                 round(trajectory(c[len(c_x):len(c_x) + len(c_y)], t))) \
-                #                  - find_pos_index(self.ipx,
-                #                                   round(trajectory(c[:len(c_x)], t - plan_time_delta)),
-                #                                   round(
-                #                                       trajectory(c[len(c_x):len(c_x) + len(c_y)], t - plan_time_delta)))
-                # total -= 50 * (con2(c) - 6)
-                total -= 3 * con3(c)
-                # total -= .5*ac/time_delta
-                total -= .2 * sp
-                total += 3 * self.distance_to_center(trajectory(c[:len(c_x)], t), trajectory(c[len(c_x):len(c_x) + len(c_y)], t))
-                # total -= find_pos_index(init_position_index, round(trajectory(c[:len(c_x)], t)), round(trajectory(c[len(c_x):len(c_x)+len(c_y)], t))) - init_position_index
+                        total -= (30 / len(opponent_cars)) * min(0, con4(c) - (car_width / 2 + .5))
+                total -= 2 * con3(c)
+                total -= .15 * sp
+                total += 2 * self.distance_to_center(trajectory(c[:num_cp], t), trajectory(c[num_cp:num_cp*2], t))
                 t += plan_time_delta
-            # total -= 5 * (find_pos_index(self.ipx, c[len(c_x) - 1],
-            #                              c[len(c_x) + len(c_y) - 1]) - self.ipx)
             if opponent_cars and is_competing:
                 for opp in opponent_cars:
-                    total -= (.5 / len(opponent_cars)) * (
+                    total -= (.25 / len(opponent_cars)) * (
                                 find_pos_index(self.ipx, c[num_cp-1], c[num_cp*2-1]) -
                                 find_pos_index(opp.ipx, opp.final_cp[num_cp-1], opp.final_cp[num_cp*2-1]))
-            # total -= 3 * (find_pos_index(self.ipx, c[len(c_x) - 1],
-            #                              c[len(c_x) + len(c_y) - 1]) - self.ipx)
-
-            # total -= 5 * (find_pos_index(init_position_index, trajectory(c[:num_cp], time_horizon),
-            #                              trajectory(c[num_cp:num_cp*2], time_horizon)) - init_position_index)
-            # total -= 0.5*arc_length(c[:num_cp], c[len(c_x):num_cp+len(c_y)])
-            total -= .25*self.min_point_horizon
+            # total -= .25*self.min_point_horizon
+            # total -= 2*(find_pos_index(self.ipx, c[num_cp-1], c[num_cp*2-1]) - self.ipx)
             return total
 
         constraints = []
@@ -266,18 +254,18 @@ class Car:
 
             t += plan_time_delta
 
-        t = plan_time_delta
-        while t <= time_horizon + plan_time_delta / 2:
-            if t > time_horizon - plan_time_delta / 2: t = time_horizon
-            con = lambda c: find_pos_index(self.ipx, round(trajectory(c[:num_cp], t)),
-                                           round(trajectory(c[num_cp:num_cp*2], t))) \
-                            - find_pos_index(self.ipx, round(trajectory(c[:num_cp], t - plan_time_delta)),
-                                             round(trajectory(c[num_cp:num_cp*2], t - plan_time_delta)))
-            nlc = NonlinearConstraint(con, 2, np.inf)
-            constraints.append(nlc)
-            t += plan_time_delta
+        # t = plan_time_delta
+        # while t <= time_horizon + plan_time_delta / 2:
+        #     if t > time_horizon - plan_time_delta / 2: t = time_horizon
+        #     con = lambda c: find_pos_index(self.ipx, round(trajectory(c[:num_cp], t)),
+        #                                    round(trajectory(c[num_cp:num_cp*2], t))) \
+        #                     - find_pos_index(self.ipx, round(trajectory(c[:num_cp], t - plan_time_delta)),
+        #                                      round(trajectory(c[num_cp:num_cp*2], t - plan_time_delta)))
+        #     nlc = NonlinearConstraint(con, 2, np.inf)
+        #     constraints.append(nlc)
+        #     t += plan_time_delta
 
-        # # Acceleration Constraints
+        # Acceleration Constraints
         # t = 0
         # while t <= time_horizon+plan_time_delta/2:
         #     if t > time_horizon-plan_time_delta/2: t = time_horizon
@@ -294,7 +282,7 @@ class Car:
         #             # if 0 <= sp <= 200/3.6: return 21 - ac
         #             # elif 200/3.6 <= sp <= 300/3.6: return 10 - ac
         #             # else: return 5 - ac
-        #             return -0.1803 * sp + 21.008 - math.sqrt(x_pp ** 2 + y_pp ** 2)
+        #             return self.acceleration_bound(sp) - ac
         #     nlc = NonlinearConstraint(con, 0, np.inf)
         #     constraints.append(nlc)
         #     t += plan_time_delta
@@ -340,9 +328,9 @@ class Car:
             A[-1][i + 2] = 1.0
         # print(A)
         lc = LinearConstraint(A, -(5 * gravitational_acceleration * time_horizon * time_horizon) / (
-                bezier_order * (bezier_order - 1)),
-                              (5 * gravitational_acceleration * time_horizon * time_horizon) / (
-                                      bezier_order * (bezier_order - 1)))
+                                bezier_order * (bezier_order - 1)),
+                                              (5 * gravitational_acceleration * time_horizon * time_horizon) / (
+                                                      bezier_order * (bezier_order - 1)))
         constraints.append(lc)
 
         t = 0
@@ -361,8 +349,7 @@ class Car:
             constraints.append(nlc)
             t += plan_time_delta
 
-        con = lambda c: find_pos_index(self.ipx, trajectory(c[:num_cp], time_horizon),
-                                       trajectory(c[num_cp:num_cp*2], time_horizon)) - self.ipx
+        con = lambda c: find_pos_index(self.ipx, c[num_cp-1],c[num_cp*2 -1]) - self.ipx
         nlc = NonlinearConstraint(con, self.min_point_horizon, self.max_point_horizon)
         constraints.append(nlc)
         print("Initial x speed", speed(self.initial[:num_cp], 0), "Initial y speed",
@@ -376,7 +363,7 @@ class Car:
         bounds = Bounds(self.lb, self.ub)
         print(datetime.datetime.now())
         # result = minimize(opt, initial, bounds=bounds, constraints=constraints, options={'disp': True, 'maxiter':2500})
-        result = basinhopping(opt, self.initial, niter=3, minimizer_kwargs={'bounds': bounds, 'constraints': constraints,
+        result = basinhopping(opt, self.initial, niter=25, minimizer_kwargs={'bounds': bounds, 'constraints': constraints,
                                                                        'options': {'maxiter': 10}}, take_step=self.take_step)
         print(datetime.datetime.now())
         self.final_cp = result.x
@@ -404,60 +391,64 @@ class Car:
 
         print("Our Optimization given Opponent Optimization Part 2")
         opponents_copy.remove(self)
-        self.race_optimize(opponent_cars)
+        self.race_optimize(opponents_copy)
 
 
-car1 = Car()
-car2 = Car()
-
-car1.ipx = 1
-car1.x = 82
-car1.y = 350
-car1.dx = 0
-car1.dy = 0
-car1.d2x = -6
-car1.d2y = 0
-car1.acceleration_bound = f1_acc_bound
-
-car2.ipx = 0
-car2.x = 79
-car2.y = 350
-car2.dx = 0
-car2.dy = 0
-car2.d2x = -2
-car2.d2y = 0
-car2.acceleration_bound = f1_acc_bound
-
-
-# def racecar_optimize(main_car, opponent_cars=None):
-#     all_cars = [main_car]
-#     if opponent_cars:
-#         all_cars += opponent_cars
-#
-#     min_acc = min(map(lambda c: math.sqrt(c.d2x**2 + c.d2y**2), all_cars))
-#     min_point_horizon = int(min(base_min_point_horizon, 0.5 * (time_horizon ** 2) * min_acc))
-#     max_point_horizon = base_max_point_horizon
+car1 = Car(x=82, y=350, dx=0, dy=0, d2x=-6, d2y=0, ipx=1, acc_bound=f1_acc_bound)
+car2 = Car(x=79, y=350, dx=0, dy=0, d2x=-2, d2y=0, ipx=0, acc_bound=f1_acc_bound)
 
 all_cars = [car1, car2]
 colors = ['.b-', '.r-', '.c-', '.m-', '.y-']
 car_positions_x = {car:[] for car in all_cars}
 car_positions_y = {car:[] for car in all_cars}
+car_velocities = {car:[0] for car in all_cars}
+car_steering_angles = {car:[0] for car in all_cars}
+car_distances = {car:[0] for car in all_cars}
 
-for i in range(1,5):
+interactive = True
+saving = False
+for i in range(1,15):
     print(f"***---ROUND {i}---***")
     car1.multi_car_optimize(opponent_cars=[car2])
     car2.race_optimize(opponent_cars=[car1], is_competing=False)
-    # plt.plot(track_boundary1_x, track_boundary1_y, '.k-', label="Track Boundary Right")
-    # plt.plot(track_boundary2_x, track_boundary2_y, '.k-', label="Track Boundary Left")
-    # plt.plot(main_track_x, main_track_y, '.g-', label="Center Trajectory")
+    if saving or interactive:
+        plt.figure(1)
+        plt.plot(track_boundary1_x, track_boundary1_y, '.k-', label="Track Boundary Right")
+        plt.plot(track_boundary2_x, track_boundary2_y, '.k-', label="Track Boundary Left")
+        plt.plot(main_track_x, main_track_y, '.g-', label="Center Trajectory")
+
     for idx, car in enumerate(all_cars):
         t = 0
         while t <= (time_horizon + update_delta) + verify_time_delta / 2:
+            x_p = speed(car.final_cp[:num_cp], t)
+            x_pp = acceleration(car.final_cp[:num_cp], t)
+            y_p = speed(car.final_cp[num_cp:num_cp * 2], t)
+            y_pp = acceleration(car.final_cp[num_cp:num_cp * 2], t)
+            sp = (x_p ** 2 + y_p ** 2)
+            if sp != 0: st_an = math.atan(((x_p * y_pp - y_p * x_pp) / (sp ** 1.5)) * car_length) * 180 / math.pi
+            else: st_an = 0
             if t > (time_horizon + update_delta) - verify_time_delta / 2: t = time_horizon + update_delta
             car_positions_x[car].append(trajectory(car.final_cp[:num_cp], t))
             car_positions_y[car].append(trajectory(car.final_cp[num_cp:num_cp * 2], t))
+            car_velocities[car].append(math.sqrt(sp))
+            car_steering_angles[car].append(st_an)
+            car_distances[car].append(car_distances[car][-1] + verify_time_delta*math.sqrt(sp))
             t += verify_time_delta
-    #     plt.plot(car_positions_x[car], car_positions_y[car], colors[idx])
+
+        if saving or interactive:
+            plt.figure(1)
+            plt.plot(car_positions_x[car], car_positions_y[car], colors[idx])
+            if saving:
+                plt.savefig("game_theoretic_runs/game_theoretic_sim_" + str(datetime.datetime.now()) + f"_round_{i}_position.png")
+            plt.figure(2)
+            plt.plot(car_distances[car], car_velocities[car], colors[idx])
+            if saving:
+                plt.savefig("game_theoretic_runs/game_theoretic_sim_" + str(datetime.datetime.now()) + f"_round_{i}_velocities.png")
+            plt.figure(3)
+            plt.plot(car_distances[car], car_steering_angles[car], colors[idx])
+            if saving:
+                plt.savefig("game_theoretic_runs/game_theoretic_sim_" + str(datetime.datetime.now()) + f"_round_{i}_steering_angles.png")
+
         car.dx = speed(car.final_cp[:num_cp], time_horizon + update_delta)
         car.dy = speed(car.final_cp[num_cp:num_cp*2], time_horizon + update_delta)
         car.d2x = acceleration(car.final_cp[:num_cp], time_horizon + update_delta)
@@ -465,25 +456,17 @@ for i in range(1,5):
         car.x = trajectory(car.final_cp[:num_cp], time_horizon + update_delta)
         car.y = trajectory(car.final_cp[num_cp:num_cp*2], time_horizon + update_delta)
         car.ipx = find_pos_index(car.ipx, car.x, car.y)
-    #
-    # plt.show()
+
+    if interactive: plt.show()
 plt.plot(track_boundary1_x, track_boundary1_y, '.k-', label="Track Boundary Right")
 plt.plot(track_boundary2_x, track_boundary2_y, '.k-', label="Track Boundary Left")
 plt.plot(main_track_x, main_track_y, '.g-', label="Center Trajectory")
 for idx, car in enumerate(all_cars):
-    # t = 0
-    # while t <= (time_horizon + update_delta) + verify_time_delta / 2:
-    #     if t > (time_horizon + update_delta) - verify_time_delta / 2: t = time_horizon + update_delta
-    #     car_positions_x[car].append(trajectory(car.final_cp[:num_cp], t))
-    #     car_positions_y[car].append(trajectory(car.final_cp[num_cp:num_cp * 2], t))
-    #     t += verify_time_delta
     plt.plot(car_positions_x[car], car_positions_y[car], colors[idx])
-    # car.dx = speed(car.final_cp[:num_cp], time_horizon + update_delta)
-    # car.dy = speed(car.final_cp[num_cp:num_cp*2], time_horizon + update_delta)
-    # car.d2x = acceleration(car.final_cp[:num_cp], time_horizon + update_delta)
-    # car.d2y = acceleration(car.final_cp[num_cp:num_cp*2], time_horizon + update_delta)
-    # car.x = trajectory(car.final_cp[:num_cp], time_horizon + update_delta)
-    # car.y = trajectory(car.final_cp[num_cp:num_cp*2], time_horizon + update_delta)
-    # car.ipx = find_pos_index(car.ipx, car.x, car.y)
+    plt.figure(2)
+    plt.plot(car_distances[car], car_velocities[car], colors[idx])
+    plt.figure(3)
+    plt.plot(car_distances[car], car_steering_angles[car], colors[idx])
+
 
 plt.show()
