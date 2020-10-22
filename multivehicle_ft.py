@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import shapely.geometry as geom
 import itertools
 def circ_slice(a, start, length):
+    #from StackOverflow
     it = itertools.cycle(a)
     next(itertools.islice(it, start, start), None)
     return list(itertools.islice(it, length))
