@@ -3,7 +3,7 @@ from collections import deque
 from copy import copy
 from functools import reduce, lru_cache
 
-from scipy.optimize import minimize, NonlinearConstraint, LinearConstraint, Bounds, basinhopping
+from scipy.optimize import minimize, NonlinearConstraint, LinearConstraint, Bounds, basinhopping, OptimizeResult, brute
 from scipy.interpolate import interp1d, splev, splrep, BSpline, splprep, SmoothBivariateSpline
 import math
 import numpy as np
@@ -101,12 +101,16 @@ def arc_length(cx, cy, delta=0.05, time_horizon=time_horizon):
 
 
 def f1_acc_bound(sp):
-    if 0 <= sp < 200/3.6:
-        return 21 - (sp/(200/3.6))*10
-    elif 200 / 3.6 <= sp < 300 / 3.6:
-        return 10 - ((sp - 200/3.6) / (100/3.6))*5
-    elif 300 / 3.6 <= sp <= 360 / 3.6:
-        return 5 - ((sp - 300/3.6) / (60/3.6))*5
+    # if 0 <= sp < 200/3.6:
+    #     return 21 - (sp/(200/3.6))*10
+    # elif 200 / 3.6 <= sp < 300 / 3.6:
+    #     return 10 - ((sp - 200/3.6) / (100/3.6))*5
+    # elif 300 / 3.6 <= sp <= 360 / 3.6:
+    #     return 5 - ((sp - 300/3.6) / (60/3.6))*5
+    # else:
+    #     return 1
+    if 0 <= sp < max_vel:
+        return 10
     else:
         return 1
 
@@ -130,6 +134,250 @@ class Car:
         point = geom.Point(x,y)
         return point.distance(self.track_horizon)
 
+    def bernstein_matrix(self, n):
+
+        # *****************************************************************************80
+        #
+        ## bernstein_matrix returns the BERNSTEIN matrix.
+        #
+        #  Discussion:
+        #
+        #    The Bernstein matrix of order N is an NxN matrix A which can be used to
+        #    transform a vector of power basis coefficients C representing a polynomial
+        #    P(X) to a corresponding Bernstein basis coefficient vector B:
+        #
+        #      B = A * C
+        #
+        #    The N power basis vectors are ordered as (1,X,X^2,...X^(N-1)) and the N
+        #    Bernstein basis vectors as ((1-X)^(N-1), X*(1-X)^(N-2),...,X^(N-1)).
+        #
+        #  Example:
+        #
+        #    N = 5
+        #
+        #    1    -4     6    -4     1
+        #    0     4   -12    12    -4
+        #    0     0     6   -12     6
+        #    0     0     0     4    -4
+        #    0     0     0     0     1
+        #
+        #  Licensing:
+        #
+        #    This code is distributed under the GNU LGPL license.
+        #
+        #  Modified:
+        #
+        #    15 March 2015
+        #
+        #  Author:
+        #
+        #    John Burkardt
+        #
+        #  Parameters:
+        #
+        #    Input, integer N, the order of the matrix.
+        #
+        #    Output, real A(N,N), the Bernstein matrix.
+        #
+
+        a = np.zeros((n, n))
+
+        for j in range(0, n):
+            for i in range(0, j + 1):
+                a[i, j] = ((-1)**(j-i) * comb(n - 1 - i, j - i) * comb(n - 1, i))/(time_horizon**j)
+
+        return a
+
+    def get_bezier_parameters(self, X, Y, c_x, c_y, degree=2):
+        """ Least square qbezier fit using penrose pseudoinverse.
+
+        Parameters:
+
+        X: array of x data.
+        Y: array of y data. Y[0] is the y point for X[0].
+        degree: degree of the Bézier curve. 2 for quadratic, 3 for cubic.
+
+        Based on https://stackoverflow.com/questions/12643079/b%C3%A9zier-curve-fitting-with-scipy
+        and probably on the 1998 thesis by Tim Andrew Pastva, "Bézier Curve Fitting".
+        """
+        if degree < 1:
+            raise ValueError('degree must be 1 or greater.')
+
+        if len(X) != len(Y):
+            raise ValueError('X and Y must be of the same length.')
+
+        if len(X) < degree + 1:
+            raise ValueError(f'There must be at least {degree + 1} points to '
+                             f'determine the parameters of a degree {degree} curve. '
+                             f'Got only {len(X)} points.')
+
+        def bpoly(n, t, k):
+            """ Bernstein polynomial when a = 0 and b = 1. """
+            return (t/time_horizon) ** k * (1 - t/time_horizon) ** (n - k) * comb(n, k)
+
+        def times():
+            """ Bernstein polynomial when a = 0 and b = 1. """
+            for i in np.linspace(0.001, time_horizon, num=len(X)):
+                yield i
+
+        def bmatrix(T):
+            """ Bernstein matrix for Bézier curves. """
+            return np.matrix([[bpoly(degree, t, k) for k in range(degree + 1)] for t in T])
+
+        def least_square_fit(points, M):
+            M_ = np.linalg.pinv(M)
+            return np.dot(M_, points)
+            # return M_ * points
+
+        # T = np.linspace(0, 5, len(X))
+        # M = bmatrix(T)
+        # points = np.array(list(zip(X, Y)))
+        # return least_square_fit(points, M).tolist()
+
+        # T = np.array([[pow(i*time_horizon/len(X), j) for j in range(num_cp)] for i in range(len(X))])
+        T = np.array([[pow(i, j) for j in range(num_cp)] for i in times()])
+        M = np.transpose(self.bernstein_matrix(num_cp))
+        M0 = M[:, :3]
+        M1 = M[:, 3:-1]
+        M2 = M[:, -1]
+
+        # print(M1)
+        # print( T[:, 1])
+        # print(M)
+        # print(np.dot(T, M))
+        # print(np.column_stack((M0, M2)).shape)
+        # print(np.column_stack((c_x, c_y)).shape)
+        # print(len(X))
+        best = np.dot(T, np.dot(M, np.column_stack(([82.0, 77.833, 68.667, 42, 52, 73, 90.0], [350.0, 350.0, 350.0, 337, 311, 272, 194.0]))))
+        LHS = np.dot(T, M1)
+        RHS = np.column_stack((X, Y)) - np.dot(np.dot(T, np.column_stack((M0, M2))), np.column_stack((c_x, c_y)))
+        # print(LHS)
+        # print(RHS)
+        # exit()
+        # points = np.array(list(zip(X, Y)))
+        x1,y1 = zip(*least_square_fit(RHS, LHS).tolist())
+        c_x[3:3] = x1
+        c_y[3:3] = y1
+        print(np.linalg.norm(RHS-np.dot(LHS, least_square_fit(RHS, LHS)))/(2*len(X)))
+        print(np.linalg.norm(np.column_stack((X, Y))-np.dot(T, np.dot(M, np.column_stack(([c_x,c_y])))))/(2*len(X)))
+        print(np.linalg.norm(np.column_stack((X, Y))-best)/(2*len(X)))
+        return c_x, c_y
+        return least_square_fit(points, M).tolist()
+
+
+    def compute_trajectory_intersection(self, x1, y1, x2, y2, x3, y3, x4, y4):
+        dx1 = x2 - x1
+        dy1 = y2 - y1
+        dx2 = x4 - x3
+        dy2 = y4 - y3
+        # print(dx1, dy1, dx2, dy2)
+        if (math.isclose(dx1, dx2, abs_tol=1e-5) and math.isclose(dy1, dy2, abs_tol=1e-5)) or \
+            (math.isclose(dx1, -dx2, abs_tol=1e-5) and math.isclose(dy1, -dy2, abs_tol=1e-5)) or \
+                (math.isclose(dx1, 0, abs_tol=1e-5) and math.isclose(dy1, 0, abs_tol=1e-5)) or \
+                (math.isclose(dx2, 0, abs_tol=1e-5) and math.isclose(dy2, 0, abs_tol=1e-5)) or \
+                (math.isclose((x1-x2)*(y3-y4) - (y1-y2) * (x3-x4), 0, abs_tol=1e-5)):
+            # print("singular")
+            intersect_x = (x3 + x2) / 2
+            intersect_y = (y3 + y2) / 2
+            # print(intersect_x, intersect_y)
+            dir_x = dx1
+            dir_y = dy1
+        else:
+            # print((x1-x2)*(y3-y4) - (y1-y2) * (x3-x4))
+            # print("non-singular")
+            intersect_x = ((x1*y2 - y1*x2) * (x3-x4) - (x1-x2)*(x3*y4 - y3*x4))/((x1-x2)*(y3-y4) - (y1-y2) * (x3-x4))
+            intersect_y = ((x1*y2 - y1*x2) * (y3-y4) - (y1-y2)*(x3*y4 - y3*x4))/((x1-x2)*(y3-y4) - (y1-y2) * (x3-x4))
+            # intersect_x = (x3 + x2) / 2
+            # intersect_y = (y3 + y2) / 2
+            len_1 = math.sqrt(dx1**2 + dy1**2)
+            len_2 = math.sqrt(dx2**2 + dy2**2)
+            dir_x = dx1 - dx2 * (len_1/len_2)
+            dir_y = dy1 - dy2 * (len_1/len_2)
+        # print("intersect_x", intersect_x, "intersect_y", intersect_y, "dir_x", dir_x, "dir_y", dir_y)
+        if not ((math.isclose(dir_x, 0, abs_tol=1e-5)) or (math.isclose(dir_y, 0, abs_tol=1e-5))):
+            if dir_x < 0:
+                x_target = 0
+            else:
+                x_target = 850
+
+            if dir_y < 0:
+                y_target = 0
+            else:
+                y_target = 650
+            tx = (x_target - intersect_x)/dir_x
+            ty = (y_target-intersect_y)/dir_y
+            if tx < ty:
+                return intersect_x + tx*dir_x/2, intersect_y + tx*dir_y/2
+            else:
+                return intersect_x + ty*dir_x/2, intersect_y + ty*dir_y/2
+        elif math.isclose(dir_y, 0, abs_tol=1e-5):
+            if dir_x < 0:
+                x_target = 0
+            else:
+                x_target = 850
+            tx = (x_target - intersect_x)/dir_x
+            return intersect_x + tx*dir_x/2, intersect_y + tx*dir_y/2
+        else:
+            if dir_y < 0:
+                y_target = 0
+            else:
+                y_target = 850
+            ty = (y_target-intersect_y)/dir_y
+            return intersect_x + ty*dir_x/2, intersect_y + ty*dir_y/2
+        # return intersect_x + dir_x, intersect_y + dir_y
+
+
+    def take_step(self, x):
+        self.min_point_horizon += self.horizon_increment
+        c_x = [x[0], x[1], x[2]]
+        c_y = [x[num_cp], x[1 + num_cp], x[2 + num_cp]]
+        target_x = main_track_x[(self.ipx + self.min_point_horizon)%len(main_track_x)]
+        target_y = main_track_y[(self.ipx + self.min_point_horizon)%len(main_track_x)]
+        target_x1 = main_track_x[(self.ipx + self.min_point_horizon - 1)%len(main_track_x)]
+        target_y1 = main_track_y[(self.ipx + self.min_point_horizon - 1)%len(main_track_x)]
+        inter_x, inter_y = self.compute_trajectory_intersection(self.x, self.y, x[1], x[1+num_cp], target_x1,
+                                                                target_y1, target_x, target_y)
+        for i in range(3, num_cp - 2):
+            c_x.append(inter_x)
+            c_y.append(inter_y)
+        c_x.append(target_x1)
+        c_y.append(target_y1)
+        c_x.append(target_x)
+        c_y.append(target_y)
+        # x[:num_cp] = c_x
+        # x[num_cp:num_cp*2] = c_y
+        # x[num_cp*2] = self.min_point_horizon
+
+        self.initial[:num_cp] = c_x
+        self.initial[num_cp:num_cp * 2] = c_y
+        # self.initial[num_cp-1] = target_x
+        # self.initial[num_cp*2 -1] = target_y
+        self.initial[num_cp*2] = self.min_point_horizon
+        self.lb[num_cp - 1] = target_x
+        self.lb[num_cp * 2 - 1] = target_y
+        self.ub[num_cp - 1] = target_x
+        self.ub[num_cp * 2 - 1] = target_y
+        self.bounds = Bounds(self.lb, self.ub)
+        # def opt(c):
+        #     total = 0
+        #     t = plan_time_delta
+        #     while t <= time_horizon + plan_time_delta / 2:
+        #         if t > time_horizon - plan_time_delta / 2: t = time_horizon
+        #         total += self.distance_to_center(trajectory(c[:num_cp], t), trajectory(c[num_cp:num_cp*2], t))
+        #         t += plan_time_delta
+        #     return total
+        #
+        # res = minimize(opt, self.initial, bounds=self.bounds)
+        # x=res.x
+        # print(self.min_point_horizon)
+        # print(res.x[:num_cp])
+        # print(res.x[num_cp:num_cp*2])
+        # self.initial = res.x
+        x = self.initial
+        print(self.min_point_horizon)
+        print(x[:num_cp])
+        print(x[num_cp:num_cp*2])
+        return x
 
     def prep_control_points(self):
         self.min_point_horizon = 25 #int(min(base_min_point_horizon, 0.5 * ((time_horizon-1) ** 2) * math.sqrt(self.d2x**2 + self.d2y**2)))
@@ -142,31 +390,44 @@ class Car:
         init_position_index = self.ipx
         init_x = self.x
         init_y = self.y
+        target_x = main_track_x[init_position_index + self.min_point_horizon]
+        target_y = main_track_y[init_position_index + self.min_point_horizon]
+        target_x1 = main_track_x[init_position_index + self.min_point_horizon - 1]
+        target_y1 = main_track_y[init_position_index + self.min_point_horizon - 1]
         c1x = (init_x + time_horizon * init_dx_dt / bezier_order)
         c1y = (init_y + time_horizon * init_dy_dt / bezier_order)
         c2x = time_horizon ** 2 * init_d2x_dt / (bezier_order * (bezier_order - 1)) + 2 * (c1x) - init_x
         c2y = time_horizon ** 2 * init_d2y_dt / (bezier_order * (bezier_order - 1)) + 2 * (c1y) - init_y
         c_x = [init_x, c1x, c2x]
         c_y = [init_y, c1y, c2y]
-        for i in range(3, num_cp):
-            if i - 3 < (bezier_order - 3) // 2:
-                c_x.append(c2x)
-                c_y.append(c2y)
-            elif i - 3 == (bezier_order - 3) // 2:
-                c_x.append((c2x + main_track_x[init_position_index + self.min_point_horizon]) / 2)
-                c_y.append((c2y + main_track_y[init_position_index + self.min_point_horizon]) / 2)
-            else:
-                c_x.append(main_track_x[init_position_index + self.min_point_horizon])
-                c_y.append(main_track_y[init_position_index + self.min_point_horizon])
+
+        inter_x, inter_y = self.compute_trajectory_intersection(init_x, init_y, c1x, c1y, target_x1, target_y1, target_x, target_y)
+        for i in range(3, num_cp-2):
+            c_x.append(inter_x)
+            c_y.append(inter_y)
+
+        c_x.append(target_x1)
+        c_y.append(target_y1)
+        c_x.append(target_x)
+        c_y.append(target_y)
+        print(c_x)
+        print(c_y)
+        # exit(1)
+
+
         lb = [init_x, c1x, c2x]
-        for i in range(3, num_cp): lb.append(0)
+        for i in range(3, num_cp-1): lb.append(0)
+        lb.append(target_x)
         lb += [init_y, c1y, c2y]
-        for i in range(3, num_cp): lb.append(0)
+        for i in range(3, num_cp-1): lb.append(0)
+        lb.append(target_y)
         lb.append(self.min_point_horizon)
         ub = [init_x, c1x, c2x]
-        for i in range(3, num_cp): ub.append(850)
+        for i in range(3, num_cp-1): ub.append(850)
+        ub.append(target_x)
         ub += [init_y, c1y, c2y]
-        for i in range(3, num_cp): ub.append(650)
+        for i in range(3, num_cp-1): ub.append(650)
+        ub.append(target_y)
         ub.append(self.max_point_horizon)
 
         c = c_x + c_y
@@ -177,27 +438,64 @@ class Car:
         self.lb = lb
         self.track_horizon = geom.LineString(circ_slice(track_coords, init_position_index, 200))
 
-    def take_step(self, x):
-        self.min_point_horizon += self.horizon_increment
-        c_x = [self.x, x[1], x[2]]
-        c_y = [self.y, x[1+num_cp], x[2+num_cp]]
-        c2x = x[2]
-        c2y = x[2+num_cp]
-        for i in range(3, num_cp):
-            if i - 3 < (bezier_order - 3) // 2:
-                c_x.append(c2x)
-                c_y.append(c2y)
-            elif i - 3 == (bezier_order - 3) // 2:
-                c_x.append((c2x + main_track_x[self.ipx + self.min_point_horizon]) / 2)
-                c_y.append((c2y + main_track_y[self.ipx + self.min_point_horizon]) / 2)
-            else:
-                c_x.append(main_track_x[self.ipx + self.min_point_horizon])
-                c_y.append(main_track_y[self.ipx + self.min_point_horizon])
-        x[:num_cp] = c_x
-        x[num_cp:num_cp*2] = c_y
-        x[num_cp*2] = self.min_point_horizon
-        # print(x)
-        return x
+    # def take_step(self, x):
+    #     self.min_point_horizon += self.horizon_increment
+    #     c_x = [self.x, x[1], x[2]]
+    #     c_y = [self.y, x[1+num_cp], x[2+num_cp]]
+    #     target_x = main_track_x[self.ipx + self.min_point_horizon]
+    #     target_y = main_track_y[self.ipx + self.min_point_horizon]
+    #     # target_x1 = main_track_x[self.ipx + self.min_point_horizon - 1]
+    #     # target_y1 = main_track_y[self.ipx + self.min_point_horizon - 1]
+    #     # inter_x, inter_y = self.compute_trajectory_intersection(self.x, self.y, x[1], x[1+num_cp], target_x1,
+    #     #                                                         target_y1, target_x, target_y)
+    #     # for i in range(3, num_cp - 2):
+    #     #     c_x.append(inter_x)
+    #     #     c_y.append(inter_y)
+    #     #
+    #     # c_x.append(target_x1)
+    #     # c_y.append(target_y1)
+    #     c_x.append(target_x)
+    #     c_y.append(target_y)
+    #     # x[:num_cp] = c_x
+    #     # x[num_cp:num_cp*2] = c_y
+    #     # x[num_cp*2] = self.min_point_horizon
+    #     # c_x, c_y = zip(*self.get_bezier_parameters(main_track_x[self.ipx:self.ipx + self.min_point_horizon],
+    #     #                                            main_track_y[self.ipx:self.ipx + self.min_point_horizon],
+    #     #                                            c_x,
+    #     #                                            c_y,
+    #     #                                            bezier_order))
+    #     c_x, c_y = self.get_bezier_parameters(main_track_x[self.ipx:self.ipx + self.min_point_horizon],
+    #                                                main_track_y[self.ipx:self.ipx + self.min_point_horizon],
+    #                                                c_x,
+    #                                                c_y,
+    #                                                bezier_order)
+    #     # self.initial[:num_cp] = c_x
+    #     # self.initial[num_cp:num_cp * 2] = c_y
+    #     # self.initial[0] = self.x
+    #     # self.initial[1] = self.dx
+    #     # self.initial[2] = self.d2x
+    #     # self.initial[num_cp] = self.y
+    #     # self.initial[num_cp + 1] = self.dy
+    #     # self.initial[num_cp + 1] = self.d2y
+    #     # self.initial[num_cp-1] = target_x
+    #     # self.initial[num_cp*2 -1] = target_y
+    #     # self.initial[num_cp*2] = self.min_point_horizon
+    #     x[3:num_cp] = c_x[3:]
+    #     x[num_cp+3:num_cp * 2] = c_y[3:]
+    #     # x[num_cp-1] = target_x
+    #     # x[num_cp*2 -1] = target_y
+    #     x[num_cp*2] = self.min_point_horizon
+    #     self.lb[num_cp-1] = target_x
+    #     self.lb[num_cp*2-1] = target_y
+    #     self.ub[num_cp-1] = target_x
+    #     self.ub[num_cp*2-1] = target_y
+    #     self.bounds = Bounds(self.lb, self.ub)
+    #     # print(self.initial[:num_cp])
+    #     # print(self.initial[num_cp:num_cp*2])
+    #     print(x[num_cp*2])
+    #     print(x[:num_cp])
+    #     print(x[num_cp:num_cp*2])
+    #     return x
 
     def race_optimize(self, opponent_cars=None, is_competing=True):
         self.prep_control_points()
@@ -228,16 +526,16 @@ class Car:
                                               trajectory(o.final_cp[:num_cp], t),
                                               trajectory(o.final_cp[num_cp:num_cp*2], t))
                         total -= (30 / len(opponent_cars)) * min(0, con4(c) - (car_width / 2 + .5))
-                total -= 2 * con3(c)
-                total -= .15 * sp
-                total += 2 * self.distance_to_center(trajectory(c[:num_cp], t), trajectory(c[num_cp:num_cp*2], t))
+                # total -= 2 * con3(c)
+                # total -= .15 * sp
+                total += 30 * self.distance_to_center(trajectory(c[:num_cp], t), trajectory(c[num_cp:num_cp*2], t))
                 t += plan_time_delta
             if opponent_cars and is_competing:
                 for opp in opponent_cars:
                     total -= (.25 / len(opponent_cars)) * (
                                 find_pos_index(self.ipx, c[num_cp-1], c[num_cp*2-1]) -
                                 find_pos_index(opp.ipx, opp.final_cp[num_cp-1], opp.final_cp[num_cp*2-1]))
-            # total -= .25*self.min_point_horizon
+            total -= self.min_point_horizon
             # total -= 2*(find_pos_index(self.ipx, c[num_cp-1], c[num_cp*2-1]) - self.ipx)
             return total
 
@@ -267,26 +565,26 @@ class Car:
         #     t += plan_time_delta
 
         # Acceleration Constraints
-        # t = 0
-        # while t <= time_horizon+plan_time_delta/2:
-        #     if t > time_horizon-plan_time_delta/2: t = time_horizon
-        #     def con(c):
-        #         x_p = speed(c[:num_cp], t)
-        #         x_pp = acceleration(c[:num_cp], t)
-        #         y_p = speed(c[num_cp:num_cp*2], t)
-        #         y_pp = acceleration(c[num_cp:num_cp*2], t)
-        #         sp = math.sqrt(x_p ** 2 + y_p ** 2)
-        #         ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
-        #         if sp >= 0.01 and ((x_p * x_pp + y_p * y_pp)/(sp*ac) <= .08):
-        #             return 5*gravitational_acceleration - ac
-        #         else:
-        #             # if 0 <= sp <= 200/3.6: return 21 - ac
-        #             # elif 200/3.6 <= sp <= 300/3.6: return 10 - ac
-        #             # else: return 5 - ac
-        #             return self.acceleration_bound(sp) - ac
-        #     nlc = NonlinearConstraint(con, 0, np.inf)
-        #     constraints.append(nlc)
-        #     t += plan_time_delta
+        t = 0
+        while t <= time_horizon+plan_time_delta/2:
+            if t > time_horizon-plan_time_delta/2: t = time_horizon
+            def con(c):
+                x_p = speed(c[:num_cp], t)
+                x_pp = acceleration(c[:num_cp], t)
+                y_p = speed(c[num_cp:num_cp*2], t)
+                y_pp = acceleration(c[num_cp:num_cp*2], t)
+                sp = math.sqrt(x_p ** 2 + y_p ** 2)
+                ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
+                if sp >= 0.01 and ((x_p * x_pp + y_p * y_pp)/(sp*ac) <= .08):
+                    return 5*gravitational_acceleration - ac
+                else:
+                    # if 0 <= sp <= 200/3.6: return 21 - ac
+                    # elif 200/3.6 <= sp <= 300/3.6: return 10 - ac
+                    # else: return 5 - ac
+                    return self.acceleration_bound(sp) - ac
+            nlc = NonlinearConstraint(con, 0, np.inf)
+            constraints.append(nlc)
+            t += plan_time_delta
 
         # Track Bounds Constraints
         t = 0
@@ -361,10 +659,18 @@ class Car:
         print("init control y=", c_y)
         print("init lb=", self.lb)
         print("init ub=", self.ub)
-        bounds = Bounds(self.lb, self.ub)
+        self.bounds = Bounds(self.lb, self.ub)
         print(datetime.datetime.now())
-        # result = minimize(opt, initial, bounds=bounds, constraints=constraints, options={'disp': True, 'maxiter':2500})
-        result = basinhopping(opt, self.initial, niter=25, minimizer_kwargs={'bounds': bounds, 'constraints': constraints,
+        fun = np.inf
+        # for i in range(10):
+        #     # exit(0)
+        #     temp = minimize(opt, self.initial, bounds=self.bounds, constraints=constraints, options={'disp': False, 'maxiter':5})
+        #     self.take_step(self.initial)
+        #     if temp.fun < fun:
+        #         result = temp
+        #         fun = temp.fun
+        # exit(0)
+        result = basinhopping(opt, self.initial, niter=10, minimizer_kwargs={'bounds': self.bounds, 'constraints': constraints,
                                                                        'options': {'maxiter': 10}}, take_step=self.take_step)
         print(datetime.datetime.now())
         self.final_cp = result.x
@@ -395,8 +701,8 @@ class Car:
         self.race_optimize(opponents_copy)
 
 
-car1 = Car(x=82, y=350, dx=0, dy=0, d2x=-6, d2y=0, ipx=1, acc_bound=f1_acc_bound)
-car2 = Car(x=79, y=350, dx=0, dy=0, d2x=-2, d2y=0, ipx=0, acc_bound=f1_acc_bound)
+car1 = Car(x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, ipx=1, acc_bound=f1_acc_bound)
+car2 = Car(x=79, y=350, dx=.1, dy=0, d2x=-2, d2y=0, ipx=0, acc_bound=f1_acc_bound)
 
 all_cars = [car1, car2]
 colors = ['.b-', '.r-', '.c-', '.m-', '.y-']
@@ -406,10 +712,11 @@ car_velocities = {car:[0] for car in all_cars}
 car_steering_angles = {car:[0] for car in all_cars}
 car_distances = {car:[0] for car in all_cars}
 
-interactive = True
+interactive = False
 saving = False
-for i in range(1,15):
+for i in range(1,3):
     print(f"***---ROUND {i}---***")
+    # car1.multi_car_optimize(opponent_cars=[])
     car1.multi_car_optimize(opponent_cars=[car2])
     car2.race_optimize(opponent_cars=[car1], is_competing=False)
     if saving or interactive:
@@ -463,6 +770,7 @@ plt.plot(track_boundary1_x, track_boundary1_y, '.k-', label="Track Boundary Righ
 plt.plot(track_boundary2_x, track_boundary2_y, '.k-', label="Track Boundary Left")
 plt.plot(main_track_x, main_track_y, '.g-', label="Center Trajectory")
 for idx, car in enumerate(all_cars):
+    plt.figure(1)
     plt.plot(car_positions_x[car], car_positions_y[car], colors[idx])
     plt.figure(2)
     plt.plot(car_distances[car], car_velocities[car], colors[idx])
