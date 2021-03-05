@@ -1,5 +1,7 @@
 import math
 
+import numpy as np
+
 init_x = -5
 init_y = 46
 target_x = 20
@@ -31,15 +33,19 @@ for i in range(len(main_track_x)):
     dy = main_track_y[i+1] - main_track_y[i]
     dx = main_track_x[i+1] - main_track_x[i]
     dist = math.sqrt(dy ** 2 + dx ** 2)
-    arr = np.array([dx * math.cos(90) - dy * math.sin(90), dx*math.sin(90) + dy*math.cos(90)])
+    arr = np.array([dx * math.cos(90) + dy * math.sin(90), -dx*math.sin(90) + dy*math.cos(90)])
     arr = arr * 5/dist
-    # if dx == 0:
-    #     print(main_track_x[i] - 5, main_track_y[i])
-    # elif dy==0:
-    #     print(main_track_x[i], main_track_y[i]-5)
-    # else:
-    #     perp_slope = -1/(dy/dx)
-    #     perb_intercept = main_track_y[i] - perp_slope * main_track_x[i]
-    #     shiftx = dist*math.sin(math.atan(5/dist))
-    #     shifty =
     print(main_track_x[i] + arr[0], main_track_y[i]+arr[1])
+
+def c():
+    for i in range(len(main_track_x)):
+        if i == len(main_track_y) - 1: break
+        dy = main_track_y[i + 1] - main_track_y[i]
+        dx = main_track_x[i + 1] - main_track_x[i]
+        dist = math.sqrt(dy ** 2 + dx ** 2)
+        arr = np.array([dx * math.cos(90) + dy * math.sin(90), -dx * math.sin(90) + dy * math.cos(90)])
+        arr = arr * 5 / dist
+        yield main_track_x[i] + arr[0], main_track_y[i] + arr[1]
+
+a, b = zip(*c())
+print(a, b)

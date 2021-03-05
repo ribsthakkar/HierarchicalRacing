@@ -1,57 +1,81 @@
 import math
 from collections import deque
+from enum import Enum
+
 import shapely.geometry as geom
 import numpy as np
 
-class Car():
-    def __init__(self, cof, max_vel, max_accel, time_delta=0.001):
-        self.cof = cof
-        self.max_vel = max_vel
-        self.max_accel = max_accel
-        self.track_index = 0
-        self.x = 0.0
-        self.y = 0.0
-        self.dx = 0.0
-        self.dy = 0.0
-        self.d2x = 0.0
-        self.d2y = 0.0
-        self.actions = deque()
-        self.visited_x=[]
-        self.visited_y=[]
-        self.time_delta=time_delta
 
-    def progress_time(self):
-        self.visited_x.append(self.x)
-        self.visited_y.append(self.y)
-        self.d2x, self.d2y = self.actions.popleft()
-        self.x += self.time_delta*(self.dx + 0.5 * self.d2x*self.time_delta)
-        self.y += self.time_delta*(self.dy + 0.5 * self.d2y*self.time_delta)
-        self.dx += self.d2x*self.time_delta
-        self.dy = self.d2y*self.time_delta
+class DriveModes(Enum):
+    FOLLOW = 1
+    PASS = 2
+    RACE = 3
+    BLOCK = 4
 
-    def _calculate_nearest_point_index(self):
-        point = geom.Point(self.x, self.y)
-        dist = point.distance(self.line)
-        pass
+class CarState:
+    def __init__(self, x, y, dx, dy, d2x, d2y, tpx, heading, mode=DriveModes.RACE):
+        self.tpx = tpx
+        self.x = x
+        self.y = y
+        self.dx = dx
+        self.dy = dy
+        self.d2x = d2x
+        self.d2y = d2y
+        self.v = math.sqrt(self.dx**2 + self.dy**2)
+        self.heading = heading
+        self.beta = 0
+        self.mode = mode
 
-    def place_on_track(self, initial_x, initial_y, target_trajectory_x, target_trajectory_y):
-        self.x = initial_x
-        self.y = initial_y
-        self.main_track_x = target_trajectory_x
-        self.main_track_y = target_trajectory_y
-        self.main_track = np.array([*zip(self.main_track_x, self.main_track_y)])
-        self.line = geom.LineString(self.main_track)
+    def update(self, acceleration, steering_angle, mode, lr, lf, time_step, track):
+        """
+        Following Kinematic Bicycle model found: https://archit-rstg.medium.com/two-to-four-bicycle-model-for-car-898063e87074
+        :param acceleration:
+        :param steering_angle:
+        :param mode:
+        :param lr:
+        :param lf:
+        :param time_step:
+        :return:
+        """
+        new_dx = self.v * math.cos(self.beta + self.heading)
+        new_dy = self.v * math.sin(self.beta + self.heading)
+        self.x = self.x + new_dx * time_step
+        self.y = self.y + new_dy * time_step
+        self.d2x = (new_dx - self.dx)/time_step
+        self.d2y = (new_dy - self.dy)/time_step
+        self.dx = new_dx
+        self.dy = new_dy
+        self.heading = self.heading + (self.v * math.sin(self.beta)/lr) * time_step
+        self.beta = math.atan((lr * steering_angle) / (lr + lf))
+        self.v = self.v + acceleration * time_step
+        self.mode = mode
+        self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
+        print(math.degrees(self.heading), math.degrees(self.beta))
 
-        self.N = self._calculate_nearest_point_index()
+class Car:
+    def __init__(self, car_profile, car_state, track, optimizer_parameters):
+        self.max_vel = car_profile['max_velocity']
+        self.acc_profile = car_profile['acceleration_profile']
+        self.width = car_profile['car_width']
+        self.length = car_profile['car_length']
+        self.max_gs = car_profile['max_cornering_gs']
+        self.max_steering_angle = car_profile['max_steering_angle']
+        self.max_acceleration = car_profile['max_acceleration']
+        self.state = car_state
+        self.track = track
+        self.opt_params = optimizer_parameters
 
-    def simulate_motion(self):
-        time = 0
+    def update_state(self, acceleration, steering_angle, mode, time_step):
+        if steering_angle < -math.radians(self.max_steering_angle):
+            steering_angle = -math.radians(self.max_steering_angle)
+        if steering_angle > math.radians(self.max_steering_angle):
+            steering_angle = math.radians(self.max_steering_angle)
+        if acceleration > self.max_acceleration:
+            acceleration = self.max_acceleration
+        self.state.update(acceleration, steering_angle, mode, self.length / 2, self.length / 2, time_step, self.track)
+        return acceleration, steering_angle, mode
 
-        while time < 100:
-            if math.isclose(math.fmod(time, 0.05), 0.0):
-                # Plan horizon
-                self.calculate_horizon()
-                pass
-            else:
-                self.progress_time()
-            time += self.time_delta
+    def plan_optimal_trajectory(self, all_cars, replan_time, input_update_time):
+        optimizer = self.opt_params['optimizer']
+        other_cars = list(filter(lambda c: c != self, all_cars))
+        return optimizer(self, other_cars, replan_time, input_update_time)

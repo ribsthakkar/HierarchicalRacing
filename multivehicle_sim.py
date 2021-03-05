@@ -697,6 +697,7 @@ for i in range(1, 200):
     for idx, car in enumerate(all_cars):
         t = 0
         while t <= (time_horizon + update_delta) + verify_time_delta / 2:
+            if t > (time_horizon + update_delta) - verify_time_delta / 2: t = time_horizon + update_delta
             x_p = speed(car.final_cp[:num_cp], t)
             x_pp = acceleration(car.final_cp[:num_cp], t)
             y_p = speed(car.final_cp[num_cp:num_cp * 2], t)
@@ -704,7 +705,6 @@ for i in range(1, 200):
             sp = (x_p ** 2 + y_p ** 2)
             if sp != 0: st_an = math.atan(((x_p * y_pp - y_p * x_pp) / (sp ** 1.5)) * car_length) * 180 / math.pi
             else: st_an = 0
-            if t > (time_horizon + update_delta) - verify_time_delta / 2: t = time_horizon + update_delta
             car_positions_x[car].append(trajectory(car.final_cp[:num_cp], t))
             car_positions_y[car].append(trajectory(car.final_cp[num_cp:num_cp * 2], t))
             car_velocities[car].append(math.sqrt(sp))

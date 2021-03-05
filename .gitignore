@@ -2,3 +2,4 @@ venv/
 procedural-tracks/
 .idea/
 *.png
+__pycache__/
