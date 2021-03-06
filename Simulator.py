@@ -43,7 +43,6 @@ class Simulator():
                 t = 0
                 while t <= (update_frequency) + time_step / 2:
                     acceleration, steering, mode = actions[idx].popleft()
-                    print(acceleration, math.degrees(steering))
                     acceleration, steering, mode = self.cars[idx].update_state(acceleration, steering, mode, time_step)
                     car_positions_x[car].append(car.state.x)
                     car_positions_y[car].append(car.state.y)
@@ -182,7 +181,7 @@ if __name__ == "__main__":
     all_cars = []
     car1 = track.place_car(x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car1)
-    # car2 = track.place_car(x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
-    # all_cars.append(car2)
+    car2 = track.place_car(x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
+    all_cars.append(car2)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=30, interactive=True, saving=False, interactive_after_steps=3)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=30)

@@ -50,7 +50,6 @@ class CarState:
         self.v = self.v + acceleration * time_step
         self.mode = mode
         self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
-        print(math.degrees(self.heading), math.degrees(self.beta))
 
 class Car:
     def __init__(self, car_profile, car_state, track, optimizer_parameters):

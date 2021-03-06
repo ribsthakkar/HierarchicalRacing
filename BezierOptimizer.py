@@ -39,12 +39,11 @@ def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
         y_p = bezier_speed(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
         y_pp = bezier_acceleration(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
         sp = (x_p ** 2 + y_p ** 2)
-        # if sp > 0:
-        #     acceleration = (x_p * x_pp + y_p * y_pp) / math.sqrt(sp)
-        # else:
-        #     acceleration = 0
-        acceleration = math.sqrt(x_pp ** 2 + y_pp ** 2)
-        print(sp, x_p, x_pp, y_p, y_pp)
+        if sp > 0:
+            acceleration = (x_p * x_pp + y_p * y_pp) / math.sqrt(sp)
+        else:
+            acceleration = 0
+        # acceleration = math.sqrt(x_pp ** 2 + y_pp ** 2)
         numerator = (x_p*y_pp - y_p*x_pp)
         if sp != 0:
             st_an = math.atan((numerator/(sp **1.5)) * agent_b_car.car_length)
@@ -289,7 +288,7 @@ class BezierCar:
                                               bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
                         total -= (30 / len(opponent_cars)) * min(0, con4(c) - (self.car_width / 2 + .5))
                 total -= 10 * acc_penalty(c)
-                total -= 10 * steer_penalty(c)
+                # total -= 10 * steer_penalty(c)
                 total -= 20/(self.time_horizon/self.plan_time_delta) * sp
                 total += 15 * self.track.distance_to_center(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon), bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
                 t += self.plan_time_delta
@@ -378,22 +377,22 @@ class BezierCar:
                                                       self.bezier_order * (self.bezier_order - 1)))
         constraints.append(lc)
 
-        # # Steering Angle Constraints
-        # t = 0
-        # while t <= self.time_horizon + self.plan_time_delta / 2:
-        #     if t > self.time_horizon - self.plan_time_delta / 2: t = self.time_horizon
-        #
-        #     def con(c):
-        #         x_p = bezier_speed(c[:self.num_cp], t, self.bezier_order, self.time_horizon)
-        #         x_pp = bezier_acceleration(c[:self.num_cp], t, self.bezier_order, self.time_horizon)
-        #         y_p = bezier_speed(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
-        #         y_pp = bezier_acceleration(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
-        #         sp = (x_p ** 2 + y_p ** 2)
-        #         return math.atan(((x_p * y_pp - y_p * x_pp) / (sp ** 1.5)) * self.car_length) * 180 / math.pi
-        #
-        #     nlc = NonlinearConstraint(con, -self.max_steering_angle, self.max_steering_angle)
-        #     constraints.append(nlc)
-        #     t += self.plan_time_delta
+        # Steering Angle Constraints
+        t = 0
+        while t <= self.time_horizon + self.plan_time_delta / 2:
+            if t > self.time_horizon - self.plan_time_delta / 2: t = self.time_horizon
+
+            def con(c):
+                x_p = bezier_speed(c[:self.num_cp], t, self.bezier_order, self.time_horizon)
+                x_pp = bezier_acceleration(c[:self.num_cp], t, self.bezier_order, self.time_horizon)
+                y_p = bezier_speed(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
+                y_pp = bezier_acceleration(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
+                sp = (x_p ** 2 + y_p ** 2)
+                return math.atan(((x_p * y_pp - y_p * x_pp) / (sp ** 1.5)) * self.car_length) * 180 / math.pi
+
+            nlc = NonlinearConstraint(con, -self.max_steering_angle, self.max_steering_angle)
+            constraints.append(nlc)
+            t += self.plan_time_delta
 
         con = lambda c: self.track.find_pos_index(self.ipx, c[self.num_cp-1],c[self.num_cp*2 -1]) - self.ipx
         nlc = NonlinearConstraint(con, self.min_point_horizon, self.max_point_horizon)
