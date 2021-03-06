@@ -71,6 +71,8 @@ class Car:
             steering_angle = math.radians(self.max_steering_angle)
         if acceleration > self.max_acceleration:
             acceleration = self.max_acceleration
+        if self.state.v >= self.max_vel:
+            acceleration = 0
         self.state.update(acceleration, steering_angle, mode, self.length / 2, self.length / 2, time_step, self.track)
         return acceleration, steering_angle, mode
 

@@ -143,6 +143,17 @@ class BezierCar:
 
     def take_step(self, x):
         self.min_point_horizon += self.horizon_increment
+        x[self.num_cp*2] = self.min_point_horizon
+        target_x = self.track.center_x[(self.ipx + self.min_point_horizon) % len(self.track.center_x)]
+        target_y = self.track.center_y[(self.ipx + self.min_point_horizon) % len(self.track.center_y)]
+        x[self.num_cp - 1] = target_x
+        x[self.num_cp * 2 - 1] = target_y
+        self.lb[self.num_cp - 1] = target_x
+        self.lb[self.num_cp * 2 - 1] = target_y
+        self.ub[self.num_cp - 1] = target_x
+        self.ub[self.num_cp * 2 - 1] = target_y
+        self.bounds = Bounds(self.lb, self.ub)
+        return x
         c_x = [x[0], x[1], x[2]]
         c_y = [x[self.num_cp], x[1 + self.num_cp], x[2 + self.num_cp]]
         target_x = self.track.center_x[(self.ipx + self.min_point_horizon)%len(self.track.center_x)]
@@ -271,6 +282,9 @@ class BezierCar:
                 sp = math.sqrt(x_p ** 2 + y_p ** 2)
                 ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
 
+                def vel_penalty(c):
+                    return min(0, self.max_vel - sp)
+
                 def acc_penalty(c):
                     if sp >= 0.01 and ((x_p * x_pp + y_p * y_pp) / (sp * ac) <= .08):
                         return min(0, self.max_gs * gravitational_acceleration - ac)
@@ -288,6 +302,7 @@ class BezierCar:
                                               bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
                         total -= (30 / len(opponent_cars)) * min(0, con4(c) - (self.car_width / 2 + .5))
                 total -= 10 * acc_penalty(c)
+                # total -= 10 * vel_penalty(c)
                 # total -= 10 * steer_penalty(c)
                 total -= 20/(self.time_horizon/self.plan_time_delta) * sp
                 total += 15 * self.track.distance_to_center(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon), bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
@@ -311,71 +326,6 @@ class BezierCar:
             constraints.append(nlc)
 
             t += self.plan_time_delta
-
-        # # Acceleration Constraints
-        # t = 0
-        # while t <= self.time_horizon+self.plan_time_delta/2:
-        #     if t > self.time_horizon-self.plan_time_delta/2: t = self.time_horizon
-        #     def con(c):
-        #         x_p = bezier_speed(c[:self.num_cp], t, self.bezier_order, self.time_horizon)
-        #         x_pp = bezier_acceleration(c[:self.num_cp], t, self.bezier_order, self.time_horizon)
-        #         y_p = bezier_speed(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
-        #         y_pp = bezier_acceleration(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
-        #         sp = math.sqrt(x_p ** 2 + y_p ** 2)
-        #         ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
-        #         if sp >= 0.01 and ((x_p * x_pp + y_p * y_pp)/(sp*ac) <= .08):
-        #             return 5*gravitational_acceleration - ac
-        #         else:
-        #             return self.acceleration_bound(sp) - ac
-        #     nlc = NonlinearConstraint(con, 0, np.inf)
-        #     constraints.append(nlc)
-        #     t += self.plan_time_delta
-        #
-        # # Track Bounds Constraints
-        # t = 0
-        # while t <= self.time_horizon + self.plan_time_delta / 2:
-        #     if t > self.time_horizon - self.plan_time_delta / 2: t = self.time_horizon
-        #     con = lambda c: self.track.distance_to_center(round(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon)),
-        #                                        round(bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)))
-        #     nlc = NonlinearConstraint(con, 0, (self.track.width / 2))
-        #     constraints.append(nlc)
-        #     if opponent_cars:
-        #         for o in opponent_cars:
-        #             con = lambda c: dist(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon), bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon),
-        #                                  bezier_trajectory(o.final_cp[:self.num_cp], t, self.bezier_order, self.time_horizon), bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
-        #             nlc = NonlinearConstraint(con, self.car_width / 2 + .5, np.inf)
-        #             constraints.append(nlc)
-        #     t += self.plan_time_delta
-
-        A = []
-        for i in range(self.num_cp - 1):
-            A.append([0.0] * len(self.initial))
-            A[-1][i] = -1.0
-            A[-1][i + 1] = 1.0
-        for i in range(self.num_cp, self.num_cp*2 - 1):
-            A.append([0.0] * len(self.initial))
-            A[-1][i] = -1.0
-            A[-1][i + 1] = 1.0
-        # print(A)
-        lc = LinearConstraint(A, -(self.max_vel * self.time_horizon) / self.bezier_order, (self.max_vel * self.time_horizon) / self.bezier_order)
-        constraints.append(lc)
-
-        for i in range(self.num_cp - 2):
-            A.append([0.0] * len(self.initial))
-            A[-1][i] = 1.0
-            A[-1][i + 1] = -2.0
-            A[-1][i + 2] = 1.0
-        for i in range(self.num_cp, self.num_cp*2 - 2):
-            A.append([0.0] * len(self.initial))
-            A[-1][i] = 1.0
-            A[-1][i + 1] = -2.0
-            A[-1][i + 2] = 1.0
-        # print(A)
-        lc = LinearConstraint(A, -(5 * gravitational_acceleration * self.time_horizon * self.time_horizon) / (
-                                self.bezier_order * (self.bezier_order - 1)),
-                                              (5 * gravitational_acceleration * self.time_horizon * self.time_horizon) / (
-                                                      self.bezier_order * (self.bezier_order - 1)))
-        constraints.append(lc)
 
         # Steering Angle Constraints
         t = 0
@@ -407,7 +357,7 @@ class BezierCar:
         print("init ub=", self.ub)
         self.bounds = Bounds(self.lb, self.ub)
         print(datetime.datetime.now())
-        result = basinhopping(opt, self.initial, niter=10, minimizer_kwargs={'bounds': self.bounds, 'constraints': constraints,
+        result = basinhopping(opt, self.initial, niter=10, minimizer_kwargs={'bounds': self.bounds, 'constraints': constraints, 'method': 'SLSQP',
                                                                        'options': {'maxiter': 10}}, take_step=self.take_step)
         print(datetime.datetime.now())
         self.final_cp = result.x

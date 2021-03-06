@@ -60,3 +60,7 @@ class Track():
     def distance_to_center(self, x, y):
         point = geom.Point(x, y)
         return point.distance(self.line)
+
+    # @staticmethod
+    # def generate_track():
+    #
