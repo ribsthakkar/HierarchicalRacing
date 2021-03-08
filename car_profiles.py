@@ -1,3 +1,6 @@
+from util import gravitational_acceleration
+
+
 def f1_acc_profile(sp):
     if 0 <= sp < 100:
         return 10
@@ -12,4 +15,5 @@ f1_profile = {
     'car_length': 5,
     'max_cornering_gs': 5,
     'max_steering_angle': 40,
+    'max_braking': 3*gravitational_acceleration
 }

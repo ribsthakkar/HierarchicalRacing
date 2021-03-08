@@ -17,7 +17,7 @@ class Track():
         self.boundary2_x, self.boundary2_y = zip(*self._generate_left_boundary())
         self.center_coords = np.array([*zip(self.center_x, self.center_y)])
         self.line = geom.LineString(self.center_coords)
-        
+        self.vehicles_on_track = []
         
     def _generate_right_boundary(self):
         for i in range(len(self.center_x)):
@@ -54,6 +54,7 @@ class Track():
         tpx  = self.find_pos_index(0, x, y, point_horizon=len(self.center_x))
         state = CarState(x, y, dx, dy, d2x, d2y, tpx, heading)
         car = Car(car_profile, state, self, optimizer_parameters)
+        self.vehicles_on_track.append(car)
         return car
 
     @lru_cache(maxsize=500)

@@ -20,7 +20,8 @@ class Simulator():
             raise ValueError("The number of cars on track must be between 1 and 5")
         self.pool = Pool(processes=5)
 
-    def simulate(self, time_step, update_frequency, total_steps, interactive,  saving, interactive_after_steps=1):
+    def simulate(self, time_step, update_frequency, total_steps, interactive, saving, interactive_after_steps=10,
+                 update_visualization_after_steps=1):
         car_positions_x = {car: [] for car in self.cars}
         car_positions_y = {car: [] for car in self.cars}
         car_velocities = {car: [0] for car in self.cars}
@@ -30,7 +31,6 @@ class Simulator():
         if saving:
             save_dir = os.path.join("game_theoretic_runs/", "game_theoretic_sim_" + str(datetime.datetime.now()))
             os.mkdir(save_dir)
-        plt.ion()
         for i in range(1, total_steps+1):
             print(f"***---ROUND {i}---***")
             # actions = []
@@ -42,6 +42,8 @@ class Simulator():
                 plt.plot(self.track.boundary1_x, self.track.boundary1_y, '.k-', label="Track Boundary Right")
                 plt.plot(self.track.boundary2_x, self.track.boundary2_y, '.k-', label="Track Boundary Left")
                 plt.plot(self.track.center_x, self.track.center_y, '.g-', label="Center Trajectory")
+                plt.ion()
+                plt.show()
 
             for idx, car in enumerate(self.cars):
                 t = 0
@@ -71,7 +73,12 @@ class Simulator():
 
             if interactive and (i % interactive_after_steps == 0):
                 plt.draw()
-                plt.pause(0.01)
+                plt.show()
+                plt.pause(100)
+            elif (i % update_visualization_after_steps == 0):
+                plt.draw()
+                plt.show()
+                plt.pause(.01)
         plt.plot(self.track.boundary1_x, self.track.boundary1_y, '.k-', label="Track Boundary Right")
         plt.plot(self.track.boundary2_x, self.track.boundary2_y, '.k-', label="Track Boundary Left")
         plt.plot(self.track.center_x, self.track.center_y, '.g-', label="Center Trajectory")
@@ -190,4 +197,4 @@ if __name__ == "__main__":
     car2 = track.place_car(x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car2)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=1)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=2, update_visualization_after_steps=1)
