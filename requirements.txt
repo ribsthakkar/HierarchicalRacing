@@ -1,6 +1,7 @@
 bezier==0.10.0
+pathos==0.2.7
+Shapely==1.7.1
+pygame==1.9.6
 scipy==1.4.1
 matplotlib==3.2.1
 numpy==1.18.2
-pygame==1.9.6
-Shapely==1.7.1
