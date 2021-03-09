@@ -42,7 +42,6 @@ class Simulator():
                 plt.plot(self.track.boundary2_x, self.track.boundary2_y, '.k-', label="Track Boundary Left")
                 plt.plot(self.track.center_x, self.track.center_y, '.g-', label="Center Trajectory")
                 plt.ion()
-                plt.show()
 
             for idx, car in enumerate(self.cars):
                 t = 0
