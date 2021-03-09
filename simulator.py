@@ -2,13 +2,12 @@ import datetime
 import os
 import math
 from typing import List
-# from multiprocessing import Pool
 from pathos.multiprocessing import  ProcessingPool as Pool
 import matplotlib.pyplot as plt
 
-from BezierOptimizer import bezier_race_optimize
-from Car_Model import Car
-from Track import Track
+from bezier_optimizer import bezier_race_optimize
+from car_models import FourModeCar, Car
+from track import Track
 from car_profiles import f1_profile
 
 
@@ -49,7 +48,7 @@ class Simulator():
                 t = 0
                 while t <= (update_frequency) + time_step / 2:
                     acceleration, steering, mode = actions[idx].popleft()
-                    acceleration, steering, mode = self.cars[idx].update_state(acceleration, steering, mode, time_step)
+                    acceleration, steering, mode = self.cars[idx].input_command(acceleration, steering, mode, time_step)
                     car_positions_x[car].append(car.state.x)
                     car_positions_y[car].append(car.state.y)
                     car_velocities[car].append(car.state.v)
@@ -192,9 +191,9 @@ if __name__ == "__main__":
         'plan_time_precision': .5
     }
     all_cars = []
-    car1 = track.place_car(x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
+    car1 = track.place_car_of_type(FourModeCar,x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car1)
-    car2 = track.place_car(x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
+    car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car2)
     simulator = Simulator(track, all_cars)
     simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=2, update_visualization_after_steps=1)

@@ -4,8 +4,8 @@ from functools import lru_cache
 import numpy as np
 import shapely.geometry as geom
 
-from Car_Model import CarState, Car
 from bezier_util import dist
+from car_models import generate_car
 
 
 class Track():
@@ -50,10 +50,8 @@ class Track():
                 min_idx = i
         return min_idx
     
-    def place_car(self, x, y, dx, dy, d2x, d2y, heading, car_profile, optimizer_parameters):
-        tpx  = self.find_pos_index(0, x, y, point_horizon=len(self.center_x))
-        state = CarState(x, y, dx, dy, d2x, d2y, tpx, heading)
-        car = Car(car_profile, state, self, optimizer_parameters)
+    def place_car_of_type(self, car_type, x, y, dx, dy, d2x, d2y, heading, car_profile, optimizer_parameters):
+        car = generate_car(car_type, x, y, dx, dy, d2x, d2y, heading, car_profile, self, optimizer_parameters)
         self.vehicles_on_track.append(car)
         return car
 

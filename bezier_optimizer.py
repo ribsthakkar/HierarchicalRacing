@@ -7,8 +7,8 @@ import numpy as np
 import shapely.geometry as geom
 from scipy.optimize import NonlinearConstraint, Bounds, basinhopping, LinearConstraint
 
-from Car_Model import DriveModes
 from bezier_util import bezier_acceleration, bezier_speed, bezier_trajectory, bezier_arc_length
+from car_modes import DriveModes
 from util import circ_slice, dist, gravitational_acceleration
 
 def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
@@ -153,55 +153,6 @@ class BezierCar:
         self.ub[self.num_cp - 1] = target_x
         self.ub[self.num_cp * 2 - 1] = target_y
         self.bounds = Bounds(self.lb, self.ub)
-        return x
-        c_x = [x[0], x[1], x[2]]
-        c_y = [x[self.num_cp], x[1 + self.num_cp], x[2 + self.num_cp]]
-        target_x = self.track.center_x[(self.ipx + self.min_point_horizon)%len(self.track.center_x)]
-        target_y = self.track.center_y[(self.ipx + self.min_point_horizon)%len(self.track.center_y)]
-        target_x1 = self.track.center_x[(self.ipx + self.min_point_horizon - 1)%len(self.track.center_x)]
-        target_y1 = self.track.center_y[(self.ipx + self.min_point_horizon - 1)%len(self.track.center_y)]
-        inter_x, inter_y = self.compute_trajectory_intersection(self.x, self.y, x[1], x[1+self.num_cp], target_x1,
-                                                                target_y1, target_x, target_y)
-        for i in range(3, self.num_cp - 2):
-            c_x.append(inter_x)
-            c_y.append(inter_y)
-        c_x.append(target_x1)
-        c_y.append(target_y1)
-        c_x.append(target_x)
-        c_y.append(target_y)
-        # x[:self.num_cp] = c_x
-        # x[self.num_cp:self.num_cp*2] = c_y
-        # x[self.num_cp*2] = self.min_point_horizon
-
-        self.initial[:self.num_cp] = c_x
-        self.initial[self.num_cp:self.num_cp * 2] = c_y
-        # self.initial[self.num_cp-1] = target_x
-        # self.initial[self.num_cp*2 -1] = target_y
-        self.initial[self.num_cp*2] = self.min_point_horizon
-        self.lb[self.num_cp - 1] = target_x
-        self.lb[self.num_cp * 2 - 1] = target_y
-        self.ub[self.num_cp - 1] = target_x
-        self.ub[self.num_cp * 2 - 1] = target_y
-        self.bounds = Bounds(self.lb, self.ub)
-        # def opt(c):
-        #     total = 0
-        #     t = plan_time_delta
-        #     while t <= self.time_horizon + plan_time_delta / 2:
-        #         if t > self.time_horizon - plan_time_delta / 2: t = self.time_horizon
-        #         total += self.distance_to_center(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon), bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
-        #         t += plan_time_delta
-        #     return total
-        #
-        # res = minimize(opt, self.initial, bounds=self.bounds)
-        # x=res.x
-        # print(self.min_point_horizon)
-        # print(res.x[:self.num_cp])
-        # print(res.x[self.num_cp:self.num_cp*2])
-        # self.initial = res.x
-        x = self.initial
-        print(self.min_point_horizon)
-        print(x[:self.num_cp])
-        print(x[self.num_cp:self.num_cp*2])
         return x
 
     def prep_control_points(self):
