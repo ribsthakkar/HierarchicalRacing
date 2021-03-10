@@ -17,7 +17,7 @@ class Car:
         self.opt_params = optimizer_parameters
         self.state = None
 
-    def input_command(self, *args):
+    def input_command(self, *args, **kwargs):
         raise NotImplementedError()
 
     def plan_optimal_trajectory(self, all_cars, replan_time, input_update_time):
@@ -27,9 +27,9 @@ class Car:
 
 
 class FourModeCar(Car):
-    def __init__(self, car_profile, car_state, track, optimizer_parameters):
+    def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, optimizer_parameters):
         super().__init__(car_profile, track, optimizer_parameters)
-        self.state = car_state
+        self.state = FourModeCarState(x, y, dx, dy, d2x, d2y, heading, track)
 
     def input_command(self, acceleration, steering_angle, mode, time_step):
         if steering_angle < -math.radians(self.max_steering_angle):
@@ -47,16 +47,10 @@ class FourModeCar(Car):
 
 
 class DiscreteInputModeCar(Car):
-    def __init__(self, car_profile, car_state, track, optimizer_parameters):
+    def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, optimizer_parameters):
         super().__init__(car_profile, track, optimizer_parameters)
-        self.state = car_state
+        self.state = InputModeCarState(x, y, dx, dy, d2x, d2y, heading, track, self.max_acceleration, self.max_braking,
+                                       self.max_gs, self.max_vel, self.max_steering_angle)
 
-    def input_command(self, acceleration, steering_angle, mode, time_step):
-        return self.state.update(acceleration, steering_angle, mode, self.length / 2,
-                                                               self.length / 2, time_step, self.track)
-
-
-def generate_car(car_type, x, y, dx, dy, d2x, d2y, heading, car_profile, track, optimizer_parameters):
-    car_state_types = {DiscreteInputModeCar: InputModeCarState, FourModeCar: FourModeCarState}
-    car_state = car_state_types[car_type](x, y, dx, dy, d2x, d2y, track, heading)
-    return car_type(car_profile, car_state, track, optimizer_parameters)
+    def input_command(self, mode, time_step):
+        return self.state.update(mode, self.length / 2, self.length / 2, time_step, self.track)

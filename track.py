@@ -5,7 +5,6 @@ import numpy as np
 import shapely.geometry as geom
 
 from bezier_util import dist
-from car_models import generate_car
 
 
 class Track():
@@ -51,7 +50,7 @@ class Track():
         return min_idx
     
     def place_car_of_type(self, car_type, x, y, dx, dy, d2x, d2y, heading, car_profile, optimizer_parameters):
-        car = generate_car(car_type, x, y, dx, dy, d2x, d2y, heading, car_profile, self, optimizer_parameters)
+        car = car_type(x, y, dx, dy, d2x, d2y, heading, car_profile, self, optimizer_parameters)
         self.vehicles_on_track.append(car)
         return car
 
