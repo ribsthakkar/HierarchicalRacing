@@ -144,15 +144,34 @@ class BezierCar:
     def take_step(self, x):
         self.min_point_horizon += self.horizon_increment
         x[self.num_cp*2] = self.min_point_horizon
+        c_x = [x[0], x[1], x[2]]
+        c_y = [x[self.num_cp], x[1 + self.num_cp], x[2 + self.num_cp]]
         target_x = self.track.center_x[(self.ipx + self.min_point_horizon) % len(self.track.center_x)]
         target_y = self.track.center_y[(self.ipx + self.min_point_horizon) % len(self.track.center_y)]
-        x[self.num_cp - 1] = target_x
-        x[self.num_cp * 2 - 1] = target_y
+        target_x1 = self.track.center_x[(self.ipx + self.min_point_horizon - 1) % len(self.track.center_x)]
+        target_y1 = self.track.center_y[(self.ipx + self.min_point_horizon - 1) % len(self.track.center_y)]
+        inter_x, inter_y = self.compute_trajectory_intersection(self.x, self.y, x[1], x[1 + self.num_cp], target_x1,
+                                                                target_y1, target_x, target_y)
+        for i in range(3, self.num_cp - 2):
+            c_x.append(inter_x)
+            c_y.append(inter_y)
+        c_x.append(target_x1)
+        c_y.append(target_y1)
+        c_x.append(target_x)
+        c_y.append(target_y)
+
+
+        x[:self.num_cp] = c_x
+        x[self.num_cp:self.num_cp * 2] = c_y
+        x[self.num_cp * 2] = self.min_point_horizon
         self.lb[self.num_cp - 1] = target_x
         self.lb[self.num_cp * 2 - 1] = target_y
         self.ub[self.num_cp - 1] = target_x
         self.ub[self.num_cp * 2 - 1] = target_y
         self.bounds = Bounds(self.lb, self.ub)
+        # print(self.min_point_horizon)
+        # print(x[:self.num_cp])
+        # print(x[self.num_cp:self.num_cp * 2])
         return x
 
     def prep_control_points(self):

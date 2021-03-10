@@ -204,4 +204,4 @@ if __name__ == "__main__":
     car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car2)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=1, update_visualization_after_steps=1, interactive_timeout=1)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=5, update_visualization_after_steps=1, interactive_timeout=50)
