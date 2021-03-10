@@ -1,6 +1,9 @@
 import datetime
 import os
 import math
+import sys
+from io import StringIO
+from threading import Timer
 from typing import List
 from pathos.multiprocessing import  ProcessingPool as Pool
 import matplotlib.pyplot as plt
@@ -9,7 +12,7 @@ from bezier_optimizer import bezier_race_optimize
 from car_models import FourModeCar, Car
 from track import Track
 from car_profiles import f1_profile
-
+old_stdin = sys.stdin
 
 class Simulator():
     def __init__(self, track: Track, cars: List[Car]):
@@ -20,7 +23,7 @@ class Simulator():
         self.pool = Pool(processes=5)
 
     def simulate(self, time_step, update_frequency, total_steps, interactive, saving, interactive_after_steps=10,
-                 update_visualization_after_steps=1):
+                 update_visualization_after_steps=1, interactive_timeout=100):
         car_positions_x = {car: [] for car in self.cars}
         car_positions_y = {car: [] for car in self.cars}
         car_velocities = {car: [0] for car in self.cars}
@@ -72,7 +75,13 @@ class Simulator():
             if interactive and (i % interactive_after_steps == 0):
                 plt.draw()
                 plt.show()
-                plt.pause(100)
+                plt.pause(.01)
+                sys.stdin = StringIO('Continuing...')
+                t = Timer(interactive_timeout, print, [""], {'file': sys.stdin})
+                t.start()
+                typed = input(f"Press [enter] to continue, or simulation will automatically continue in {interactive_timeout} seconds\n")
+                print(typed)
+                t.cancel()
             elif (i % update_visualization_after_steps == 0):
                 plt.draw()
                 plt.show()
@@ -195,4 +204,4 @@ if __name__ == "__main__":
     car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car2)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=2, update_visualization_after_steps=1)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=1, update_visualization_after_steps=1, interactive_timeout=1)
