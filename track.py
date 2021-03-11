@@ -5,6 +5,7 @@ import numpy as np
 import shapely.geometry as geom
 
 from bezier_util import dist
+from util import circ_slice
 
 
 class Track():
@@ -58,6 +59,12 @@ class Track():
     def distance_to_center(self, x, y):
         point = geom.Point(x, y)
         return point.distance(self.line)
+
+    @lru_cache(maxsize=500)
+    def distance_to_center_custom_range(self, x, y, min_pt_hz, max_pt_hz):
+        line = geom.LineString(circ_slice(self.center_coords, min_pt_hz, max_pt_hz-min_pt_hz))
+        point = geom.Point(x, y)
+        return point.distance(line)
 
     # @staticmethod
     # def generate_track():

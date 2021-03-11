@@ -1,7 +1,11 @@
-import sys
-from io import StringIO
+# import sys
+# from io import StringIO
+#
+# oldstdin = sys.stdin
+# sys.stdin = StringIO('Test')
+#
+# print(input('testing,'))
 
-oldstdin = sys.stdin
-sys.stdin = StringIO('Test')
+from bezier_optimizer import BezierCar
 
-print(input('testing,'))
+b = BezierCar.compute_trajectory_intersection()

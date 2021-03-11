@@ -43,9 +43,9 @@ class FourModeCarState(CarState):
         self.side_slip = math.atan((lr * steering_angle) / (lr + lf))
         self.mode = mode
         self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
-        return self._race_mode_acc_contol(acceleration, steering_angle, mode, time_step, track, kwargs)
+        return self._race_mode_acc_contol(acceleration, steering_angle, mode, time_step, track, **kwargs)
 
-    def _race_mode_acc_contol(self, acceleration, steering_angle, mode, time_step, track, kwargs):
+    def _race_mode_acc_contol(self, acceleration, steering_angle, mode, time_step, track, **kwargs):
         new_v = self.v + acceleration * time_step
         # Iteratively reduce true acceleration input until no more collisions
         # If no acceleration input is feasible then collision is unavoidable and return max braking

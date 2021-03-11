@@ -125,6 +125,8 @@ class BezierCar:
                 return intersect_x + tx*dir_x/2, intersect_y + tx*dir_y/2
             else:
                 return intersect_x + ty*dir_x/2, intersect_y + ty*dir_y/2
+        elif (math.isclose(dir_x, 0, abs_tol=1e-5)) and (math.isclose(dir_y, 0, abs_tol=1e-5)):
+            return intersect_x, intersect_y
         elif math.isclose(dir_y, 0, abs_tol=1e-5):
             if dir_x < 0:
                 x_target = 0
@@ -143,35 +145,20 @@ class BezierCar:
 
     def take_step(self, x):
         self.min_point_horizon += self.horizon_increment
-        x[self.num_cp*2] = self.min_point_horizon
-        c_x = [x[0], x[1], x[2]]
-        c_y = [x[self.num_cp], x[1 + self.num_cp], x[2 + self.num_cp]]
         target_x = self.track.center_x[(self.ipx + self.min_point_horizon) % len(self.track.center_x)]
         target_y = self.track.center_y[(self.ipx + self.min_point_horizon) % len(self.track.center_y)]
         target_x1 = self.track.center_x[(self.ipx + self.min_point_horizon - 1) % len(self.track.center_x)]
         target_y1 = self.track.center_y[(self.ipx + self.min_point_horizon - 1) % len(self.track.center_y)]
-        inter_x, inter_y = self.compute_trajectory_intersection(self.x, self.y, x[1], x[1 + self.num_cp], target_x1,
-                                                                target_y1, target_x, target_y)
-        for i in range(3, self.num_cp - 2):
-            c_x.append(inter_x)
-            c_y.append(inter_y)
-        c_x.append(target_x1)
-        c_y.append(target_y1)
-        c_x.append(target_x)
-        c_y.append(target_y)
-
-
-        x[:self.num_cp] = c_x
-        x[self.num_cp:self.num_cp * 2] = c_y
-        x[self.num_cp * 2] = self.min_point_horizon
+        x[self.num_cp - 2] = target_x1
+        x[self.num_cp * 2 - 2] = target_y1
+        x[self.num_cp - 1] = target_x
+        x[self.num_cp * 2 - 1] = target_y
         self.lb[self.num_cp - 1] = target_x
         self.lb[self.num_cp * 2 - 1] = target_y
         self.ub[self.num_cp - 1] = target_x
         self.ub[self.num_cp * 2 - 1] = target_y
+        x[self.num_cp * 2] = self.min_point_horizon
         self.bounds = Bounds(self.lb, self.ub)
-        # print(self.min_point_horizon)
-        # print(x[:self.num_cp])
-        # print(x[self.num_cp:self.num_cp * 2])
         return x
 
     def prep_control_points(self):
@@ -275,14 +262,16 @@ class BezierCar:
                 # total -= 10 * vel_penalty(c)
                 # total -= 10 * steer_penalty(c)
                 total -= 20/(self.time_horizon/self.plan_time_delta) * sp
-                total += 15 * self.track.distance_to_center(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon), bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
+                total += 30 * self.track.distance_to_center_custom_range(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon),
+                                                                         bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon),
+                                                                         self.ipx, self.ipx + self.max_point_horizon)
                 t += self.plan_time_delta
             if opponent_cars:
                 for opp in opponent_cars:
                     total -= (.25 / len(opponent_cars)) * (
                                 self.track.find_pos_index(self.ipx, c[self.num_cp-1], c[self.num_cp*2-1]) -
                                 self.track.find_pos_index(opp.ipx, opp.final_cp[self.num_cp-1], opp.final_cp[self.num_cp*2-1]))
-            total -= c[-1]
+            total -= 0.2 * (c[-1] - self.ipx)
             return total
 
         constraints = []
@@ -330,7 +319,10 @@ class BezierCar:
         result = basinhopping(opt, self.initial, niter=10, minimizer_kwargs={'bounds': self.bounds, 'constraints': constraints, 'method': 'SLSQP',
                                                                        'options': {'maxiter': 10}}, take_step=self.take_step)
         print(datetime.datetime.now())
-        self.final_cp = result.x
+        if math.nan not in result.x and math.inf not in result.x:
+            self.final_cp = result.x
+        else:
+            self.final_cp = self.initial
         output = [round(x, 3) for x in result.x]
         print("c_x", output[:len(c_x)])
         print("c_y", output[len(c_x):len(c_x) + len(c_y)])

@@ -23,7 +23,7 @@ class Simulator():
         self.pool = Pool(processes=5)
 
     def simulate(self, time_step, update_frequency, total_steps, interactive, saving, interactive_after_steps=10,
-                 update_visualization_after_steps=1, interactive_timeout=100):
+                 update_visualization_after_steps=1, interactive_timeout=None):
         car_positions_x = {car: [] for car in self.cars}
         car_positions_y = {car: [] for car in self.cars}
         car_velocities = {car: [0] for car in self.cars}
@@ -73,15 +73,21 @@ class Simulator():
                         plt.savefig(save_dir + f"/round_{i}_steering_angles.png")
 
             if interactive and (i % interactive_after_steps == 0):
-                plt.draw()
-                plt.show()
-                plt.pause(.01)
-                sys.stdin = StringIO('Continuing...')
-                t = Timer(interactive_timeout, print, [""], {'file': sys.stdin})
-                t.start()
-                typed = input(f"Press [enter] to continue, or simulation will automatically continue in {interactive_timeout} seconds\n")
-                print(typed)
-                t.cancel()
+                if interactive_timeout is not None:
+                    plt.draw()
+                    plt.show()
+                    sys.stdin = StringIO('Continuing...')
+                    t = Timer(interactive_timeout, print, [""], {'file': sys.stdin})
+                    t.start()
+                    plt.pause(interactive_timeout + 5)
+                    typed = input(f"Press [enter] to continue, or simulation will automatically continue in {interactive_timeout} seconds\n")
+                    print(typed)
+                    t.cancel()
+                else:
+                    plt.draw()
+                    plt.show()
+                    plt.pause(30)
+                    input(f"Press [enter] to continue\n")
             elif (i % update_visualization_after_steps == 0):
                 plt.draw()
                 plt.show()
@@ -96,7 +102,7 @@ class Simulator():
             plt.plot(car_distances[car], car_velocities[car], colors[idx])
             plt.figure(3)
             plt.plot(car_distances[car], car_steering_angles[car], colors[idx])
-
+        plt.draw()
         plt.show()
 
 
@@ -193,7 +199,7 @@ if __name__ == "__main__":
     optimizer_params = {
         'optimizer': bezier_race_optimize,
         'min_point_horizon': 25,
-        'max_point_horizon': 200,
+        'max_point_horizon': 150,
         'bezier_order': 6,
         'plan_time_horizon': 5,
         'plan_time_precision': .5
@@ -204,4 +210,4 @@ if __name__ == "__main__":
     car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car2)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=5, update_visualization_after_steps=1, interactive_timeout=50)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=300, interactive=True, saving=False, interactive_after_steps=60, update_visualization_after_steps=10, interactive_timeout=None)
