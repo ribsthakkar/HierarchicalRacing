@@ -190,16 +190,15 @@ class InputModes:
 
     def _find_best_heading(self, mode, targetv, targeth, dt):
         if math.isclose(targeth, mode[1]): return mode[1]
-        if self._is_cw(mode[1], targeth):
-            max_bounds = targeth - mode[1] if targeth > mode[1] else targeth + TPI - mode[1]
-        else:
-            max_bounds = TPI
+        max_bounds = self._find_smallest_rotation(targeth, mode[1])
+        if self._is_cw(mode[1], targeth): bounds=(-max_bounds, 0)
+        else: bounds=(0, max_bounds)
         def opt_h(h):
             d = mode[1] + h
             if self._find_max_cornering_acc(mode, targetv, d, dt) <= self.max_corn:
                 return -h
             return 1000000
-        result = optimize.minimize_scalar(opt_h, bounds=(0, max_bounds), method='bounded')
+        result = optimize.minimize_scalar(opt_h, bounds=bounds, method='bounded')
         return math.fmod(-result.x + mode[1], TPI) if result.x < 1000000 else mode[1]
 
     def _find_best_braking(self, mode, targetv, targeth, dt):
@@ -226,9 +225,9 @@ class InputModes:
     def _find_smallest_rotation(self, target_h, current_h):
         print(target_h, current_h)
         if self._is_cw(current_h, target_h):
-            return target_h - current_h if target_h > current_h else target_h + TPI - current_h
-        else:
             return current_h - target_h if current_h > target_h else current_h + TPI - target_h
+        else:
+            return target_h - current_h if target_h > current_h else target_h + TPI - current_h
 
 
     def try_switch(self, mode, velocity, heading, slip, time_step):
