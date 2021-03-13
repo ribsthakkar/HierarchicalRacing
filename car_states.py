@@ -111,9 +111,10 @@ class InputModeCarState(CarState):
         self.d2y = (new_dy - self.dy) / time_step
         self.dx = new_dx
         self.dy = new_dy
-        acceleration, steering_angle, mode = self.mode_manager.try_switch(mode, self.v, self.heading, self.side_slip, time_step)
-        self.heading = self.heading + (self.v * math.sin(self.side_slip) / lr) * time_step
-        self.side_slip = math.atan((lr * steering_angle) / (lr + lf))
-        self.v = self.v + acceleration * time_step
-        self.mode = mode
+        self.v, self.heading, self.mode = self.mode_manager.try_switch(self.mode, mode[0], mode[1], self.side_slip, time_step)
+        # self.heading = self.heading + (self.v * math.sin(self.side_slip) / lr) * time_step
+        # self.side_slip = math.atan((lr * steering_angle) / (lr + lf))
+        # self.v = self.v + acceleration * time_step
+        # self.mode = mode
         self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
+        return self.v, 0, self.mode

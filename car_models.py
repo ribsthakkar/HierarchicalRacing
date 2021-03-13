@@ -52,5 +52,17 @@ class DiscreteInputModeCar(Car):
         self.state = InputModeCarState(x, y, dx, dy, d2x, d2y, heading, track, self.max_acceleration, self.max_braking,
                                        self.max_gs, self.max_vel, self.max_steering_angle)
 
-    def input_command(self, mode, time_step):
-        return self.state.update(mode, self.length / 2, self.length / 2, time_step, self.track)
+    def input_command(self, acceleration, steering_angle, mode, time_step):
+        if steering_angle < -math.radians(self.max_steering_angle):
+            steering_angle = -math.radians(self.max_steering_angle)
+        if steering_angle > math.radians(self.max_steering_angle):
+            steering_angle = math.radians(self.max_steering_angle)
+        if acceleration > self.max_acceleration:
+            acceleration = self.max_acceleration
+        if acceleration < self.max_braking:
+            acceleration = self.max_braking
+        ss = math.atan(((self.length / 2) * steering_angle) / (self.length))
+        heading = self.state.heading + (self.state.v * math.sin(ss) / (self.length/2)) * time_step
+        print(ss, heading)
+        input_mode = (self.state.v + acceleration * time_step, heading)
+        return self.state.update(input_mode, self.length / 2, self.length / 2, time_step, self.track)
