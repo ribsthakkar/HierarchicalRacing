@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from bezier_optimizer import bezier_race_optimize
 from car_models import FourModeCar, Car, DiscreteInputModeCar
+from car_modes import ControlType
 from static_optimizer import static_race_optimize
 from track import Track
 from car_profiles import f1_profile
@@ -51,7 +52,11 @@ class Simulator():
                 t = 0
                 while t <= (update_frequency) + time_step / 2:
                     acceleration, steering, mode = actions[idx].popleft()
-                    acceleration, steering, mode = self.cars[idx].input_command(acceleration, steering, mode, time_step)
+                    if self.cars[idx].get_control_type() == ControlType.STEER_ACCELERATE:
+                        acceleration, steering, mode = self.cars[idx].input_steer_accelerate_command(acceleration, steering, mode, time_step)
+                    elif self.cars[idx].get_control_type() == ControlType.MODE_ONLY:
+                        acceleration, steering, mode = self.cars[idx].input_mode_command(mode, time_step)
+
                     car_positions_x[car].append(car.state.x)
                     car_positions_y[car].append(car.state.y)
                     car_velocities[car].append(car.state.v)
@@ -197,25 +202,34 @@ if __name__ == "__main__":
     349, 349, 349, 348, 348, 347, 347, 346, 346, 345, 344, 344)
     track_width = 10
     track = Track(main_track_x, main_track_y, track_width)
-    optimizer_params = {
+    control_params_1 = {
         'optimizer': bezier_race_optimize,
-        'min_point_horizon': 25,
-        'max_point_horizon': 150,
-        'bezier_order': 6,
-        'plan_time_horizon': 5,
-        'plan_time_precision': .5
+        'optimizer_params': {
+            'min_point_horizon': 25,
+            'max_point_horizon': 150,
+            'bezier_order': 6,
+            'plan_time_horizon': 5,
+            'plan_time_precision': .5,
+        },
+        'control_type': ControlType.STEER_ACCELERATE
     }
     all_cars = []
-    # car1 = track.place_car_of_type(FourModeCar,x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
+    # car1 = track.place_car_of_type(DiscreteInputModeCar,x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params_1)
     # all_cars.append(car1)
-    # car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
+    # car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params_1)
     # all_cars.append(car2)
-    # optimizer_params = {
-    #     'optimizer': static_race_optimize,
-    #     'plan_time_horizon': 5,
-    #     'plan_time_precision': .5
-    # }
-    car3 = track.place_car_of_type(DiscreteInputModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
+    control_params_2 = {
+        'optimizer': bezier_race_optimize,
+        'optimizer_params': {
+            'min_point_horizon': 25,
+            'max_point_horizon': 150,
+            'bezier_order': 6,
+            'plan_time_horizon': 5,
+            'plan_time_precision': .5,
+        },
+        'control_type': ControlType.STEER_ACCELERATE
+    }
+    car3 = track.place_car_of_type(DiscreteInputModeCar, x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
     simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=50, interactive=True, saving=False, interactive_after_steps=25, update_visualization_after_steps=1, interactive_timeout=None)

@@ -101,11 +101,17 @@ class InputModeCarState(CarState):
 
     def update(self, mode, lr, lf, time_step, track, **kwargs):
         """
-        Following Kinematic Bicycle model found: https://archit-rstg.medium.com/two-to-four-bicycle-model-for-car-898063e87074
+        Following Kinematic Bicycle model found: https://dingyan89.medium.com/simple-understanding-of-kinematic-bicycle-model-81cac6420357
+        in part 2.3 with some modifications to use average velocity when computing steering angle and average velocity to
+        compute position.
         """
         old_heading = self.heading
         old_v = self.v
         self.v, self.heading, self.mode = self.mode_manager.try_switch(self.mode, mode[0], mode[1], time_step)
+        acceleration = (self.v - old_v)/time_step
+        dh = (self.heading - old_heading)/time_step
+        avg_v = (self.v + old_v)/2
+        steering_angle = math.atan(dh * (lr + lf)/(avg_v * math.cos(self.side_slip)))
         new_dx = self.v * math.cos(self.heading + self.side_slip)
         new_dy = self.v * math.sin(self.heading + self.side_slip)
         self.x = self.x + (new_dx + self.dx) * time_step * 0.5
@@ -114,8 +120,6 @@ class InputModeCarState(CarState):
         self.d2y = (new_dy - self.dy) / time_step
         self.dx = new_dx
         self.dy = new_dy
-        self.side_slip = math.atan((lr * (self.heading - old_heading)) / (math.cos(self.side_slip) * self.v))
+        self.side_slip = math.atan((lr * math.tan(steering_angle)/(lr + lf)))
         self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
-        acceleration = (self.v - old_v)/time_step
-        steering_angle = (self.heading - old_heading) * (lr + lf)/(old_v)
         return acceleration, steering_angle, self.mode

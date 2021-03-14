@@ -280,4 +280,6 @@ class InputModes:
             return rvelocity, rheading, (rvelocity, rheading)
 
 
-
+class ControlType(Enum):
+    STEER_ACCELERATE = 1
+    MODE_ONLY = 2

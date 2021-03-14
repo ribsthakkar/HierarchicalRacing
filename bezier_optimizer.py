@@ -56,7 +56,7 @@ def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
 
 class BezierCar:
     def __init__(self, agent):
-        parameters = agent.opt_params
+        parameters = agent.control_params['optimizer_params']
         self.min_point_horizon = parameters['min_point_horizon']
         self.max_point_horizon = parameters['max_point_horizon']
         self.bezier_order = parameters['bezier_order']
