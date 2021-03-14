@@ -40,7 +40,7 @@ class FourModeCarState(CarState):
         self.dx = new_dx
         self.dy = new_dy
         self.heading = self.heading + (self.v * math.sin(self.side_slip) / lr) * time_step
-        self.side_slip = math.atan((lr * steering_angle) / (lr + lf))
+        self.side_slip = math.atan((lr * math.tan(steering_angle)) / (lr + lf))
         self.mode = mode
         self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
         return self._race_mode_acc_contol(acceleration, steering_angle, mode, time_step, track, **kwargs)
@@ -103,18 +103,19 @@ class InputModeCarState(CarState):
         """
         Following Kinematic Bicycle model found: https://archit-rstg.medium.com/two-to-four-bicycle-model-for-car-898063e87074
         """
-        new_dx = self.v * math.cos(self.side_slip + self.heading)
-        new_dy = self.v * math.sin(self.side_slip + self.heading)
-        self.x = self.x + new_dx * time_step
-        self.y = self.y + new_dy * time_step
+        old_heading = self.heading
+        old_v = self.v
+        self.v, self.heading, self.mode = self.mode_manager.try_switch(self.mode, mode[0], mode[1], time_step)
+        new_dx = self.v * math.cos(self.heading + self.side_slip)
+        new_dy = self.v * math.sin(self.heading + self.side_slip)
+        self.x = self.x + (new_dx + self.dx) * time_step * 0.5
+        self.y = self.y + (new_dy + self.dy) * time_step * 0.5
         self.d2x = (new_dx - self.dx) / time_step
         self.d2y = (new_dy - self.dy) / time_step
         self.dx = new_dx
         self.dy = new_dy
-        self.v, self.heading, self.mode = self.mode_manager.try_switch(self.mode, mode[0], mode[1], self.side_slip, time_step)
-        # self.heading = self.heading + (self.v * math.sin(self.side_slip) / lr) * time_step
-        # self.side_slip = math.atan((lr * steering_angle) / (lr + lf))
-        # self.v = self.v + acceleration * time_step
-        # self.mode = mode
+        self.side_slip = math.atan((lr * (self.heading - old_heading)) / (math.cos(self.side_slip) * self.v))
         self.tpx = track.find_pos_index(self.tpx, self.x, self.y)
-        return self.v, 0, self.mode
+        acceleration = (self.v - old_v)/time_step
+        steering_angle = (self.heading - old_heading) * (lr + lf)/(old_v)
+        return acceleration, steering_angle, self.mode

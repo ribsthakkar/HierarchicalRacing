@@ -61,8 +61,8 @@ class DiscreteInputModeCar(Car):
             acceleration = self.max_acceleration
         if acceleration < self.max_braking:
             acceleration = self.max_braking
-        ss = math.atan(((self.length / 2) * steering_angle) / (self.length))
-        heading = self.state.heading + (self.state.v * math.sin(ss) / (self.length/2)) * time_step
-        print(ss, heading)
-        input_mode = (self.state.v + acceleration * time_step, heading)
-        return self.state.update(input_mode, self.length / 2, self.length / 2, time_step, self.track)
+        target_v = self.state.v + acceleration * time_step
+        target_heading = self.state.heading + (target_v * math.tan(steering_angle) * math.cos(self.state.side_slip) / (self.length)) * time_step
+        input_mode = (target_v, target_heading)
+        acceleration, steering_angle, mode = self.state.update(input_mode, self.length / 2, self.length / 2, time_step, self.track)
+        return acceleration, steering_angle, mode

@@ -2,7 +2,6 @@ import itertools
 import math
 from enum import Enum
 import numpy as np
-import networkx as nx
 from scipy import optimize
 import scipy.stats as stats
 
@@ -18,7 +17,7 @@ class DriveModes(Enum):
 
 
 class InputModes:
-    def __init__(self, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle, vel_precision=0.5, heading_precision= TPI/100):
+    def __init__(self, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle, vel_precision=0.5, heading_precision= TPI/1000):
         self.max_acc = max_acceleration
         self.max_brak = max_braking
         self.max_corn = max_cornering_gs * gravitational_acceleration
@@ -145,7 +144,7 @@ class InputModes:
         v = round_to_fraction(velocity, self.v_prec)
         v = max(min(v, self.max_v), self.v_prec)
         h = round_to_fraction(heading, self.h_prec)
-        h = max(min(h, TPI), 0)
+        # h = max(min(h, TPI), 0)
         return (v, h)
 
     def _find_max_cornering_acc(self, mode, targetv, targeth, dt):
@@ -199,7 +198,7 @@ class InputModes:
                 return -h
             return 1000000
         result = optimize.minimize_scalar(opt_h, bounds=bounds, method='bounded')
-        return math.fmod(-result.x + mode[1], TPI) if result.x < 1000000 else mode[1]
+        return -result.x + mode[1] if result.x < 1000000 else mode[1]
 
     def _find_best_braking(self, mode, targetv, targeth, dt):
         if math.isclose(targetv, mode[0]): return mode[0]
@@ -230,8 +229,8 @@ class InputModes:
             return target_h - current_h if target_h > current_h else target_h + TPI - current_h
 
 
-    def try_switch(self, mode, velocity, heading, slip, time_step):
-        if heading > TPI: heading = math.fmod(heading, TPI)
+    def try_switch(self, mode, velocity, heading, time_step):
+        # if heading > TPI: heading = math.fmod(heading, TPI)
         rvelocity, rheading = self.mode_from_velocity_heading(velocity, heading)
         max_corn = self._find_max_cornering_acc(mode, rvelocity, rheading, time_step)
         max_long = self._find_max_longitudnal_acc(mode, rvelocity, rheading, time_step)

@@ -210,12 +210,12 @@ if __name__ == "__main__":
     # all_cars.append(car1)
     # car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     # all_cars.append(car2)
-    optimizer_params = {
-        'optimizer': static_race_optimize,
-        'plan_time_horizon': 5,
-        'plan_time_precision': .5
-    }
+    # optimizer_params = {
+    #     'optimizer': static_race_optimize,
+    #     'plan_time_horizon': 5,
+    #     'plan_time_precision': .5
+    # }
     car3 = track.place_car_of_type(DiscreteInputModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=25, interactive=True, saving=False, interactive_after_steps=25, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=50, interactive=True, saving=False, interactive_after_steps=25, update_visualization_after_steps=1, interactive_timeout=None)

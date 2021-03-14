@@ -14,5 +14,5 @@ def dist(x1, y1, x2, y2):
 
 def round_to_fraction(num, frac):
     a = num * (1/frac)
-    a = math.floor(a)
+    a = round(a)
     return a * (frac)
