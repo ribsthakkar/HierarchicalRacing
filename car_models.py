@@ -56,10 +56,13 @@ class FourModeCar(Car):
 class DiscreteInputModeCar(Car):
     def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, controller_parameters):
         super().__init__(car_profile, track, controller_parameters)
-        self.state = InputModeCarState(x, y, dx, dy, d2x, d2y, heading, track, self.max_acceleration, self.max_braking,
-                                       self.max_gs, self.max_vel, self.max_steering_angle)
+        self.state = InputModeCarState(x, y, dx, dy, d2x, d2y, heading, track, self.length, self.width,
+                                       self.max_acceleration, self.max_braking, self.max_gs, self.max_vel,
+                                       self.max_steering_angle)
 
     def input_steer_accelerate_command(self, acceleration, steering_angle, mode, time_step):
+        cars_ahead = self.track.cars_ahead[self]
+        cars_side = self.track.cars_side[self]
         if steering_angle < -math.radians(self.max_steering_angle):
             steering_angle = -math.radians(self.max_steering_angle)
         if steering_angle > math.radians(self.max_steering_angle):
@@ -69,13 +72,16 @@ class DiscreteInputModeCar(Car):
         if acceleration < self.max_braking:
             acceleration = self.max_braking
         target_v = self.state.v + acceleration * time_step
-        target_heading = self.state.heading + (target_v * math.tan(steering_angle) * math.cos(self.state.side_slip) / (self.length)) * time_step
+        avg_v = (self.state.v + target_v)/2
+        target_heading = self.state.heading + (avg_v * math.tan(steering_angle) * math.cos(self.state.side_slip) / (self.length)) * time_step
         input_mode = (target_v, target_heading)
-        acceleration, steering_angle, mode = self.state.update(input_mode, self.length / 2, self.length / 2, time_step, self.track)
+        acceleration, steering_angle, mode = self.state.update(input_mode, self.length / 2, self.length / 2, time_step, self.track, cars_ahead=cars_ahead, cars_side=cars_side)
         return acceleration, steering_angle, mode
 
     def input_mode_command(self, mode, time_step):
+        cars_ahead = self.track.cars_ahead[self]
+        cars_side = self.track.cars_side[self]
         if mode == None:
-            return self.state.update(self.state.mode, self.length / 2, self.length / 2, time_step, self.track)
+            return self.state.update(self.state.mode, self.length / 2, self.length / 2, time_step, self.track, cars_ahead=cars_ahead, cars_side=cars_side)
         else:
-            return self.state.update(mode, self.length / 2, self.length / 2, time_step, self.track)
+            return self.state.update(mode, self.length / 2, self.length / 2, time_step, self.track, cars_ahead=cars_ahead, cars_side=cars_side)

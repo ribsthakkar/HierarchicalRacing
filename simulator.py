@@ -47,15 +47,15 @@ class Simulator():
                 plt.plot(self.track.boundary2_x, self.track.boundary2_y, '.k-', label="Track Boundary Left")
                 plt.plot(self.track.center_x, self.track.center_y, '.g-', label="Center Trajectory")
                 plt.ion()
-
-            for idx, car in enumerate(self.cars):
+            car_ordering = self.track.get_car_ordering()
+            for idx, car in enumerate(car_ordering):
                 t = 0
                 while t <= (update_frequency) + time_step / 2:
                     acceleration, steering, mode = actions[idx].popleft()
-                    if self.cars[idx].get_control_type() == ControlType.STEER_ACCELERATE:
-                        acceleration, steering, mode = self.cars[idx].input_steer_accelerate_command(acceleration, steering, mode, time_step)
-                    elif self.cars[idx].get_control_type() == ControlType.MODE_ONLY:
-                        acceleration, steering, mode = self.cars[idx].input_mode_command(mode, time_step)
+                    if car_ordering[idx].get_control_type() == ControlType.STEER_ACCELERATE:
+                        acceleration, steering, mode = car_ordering[idx].input_steer_accelerate_command(acceleration, steering, mode, time_step)
+                    elif car_ordering[idx].get_control_type() == ControlType.MODE_ONLY:
+                        acceleration, steering, mode = car_ordering[idx].input_mode_command(mode, time_step)
 
                     car_positions_x[car].append(car.state.x)
                     car_positions_y[car].append(car.state.y)
@@ -77,7 +77,7 @@ class Simulator():
                     plt.plot(car_distances[car], car_steering_angles[car], colors[idx])
                     if saving:
                         plt.savefig(save_dir + f"/round_{i}_steering_angles.png")
-
+            self.track.update_cars_ahead_side(time_step)
             if interactive and (i % interactive_after_steps == 0):
                 if interactive_timeout is not None:
                     plt.draw()
@@ -90,9 +90,10 @@ class Simulator():
                     print(typed)
                     t.cancel()
                 else:
+                    plt.ioff()
                     plt.draw()
                     plt.show()
-                    plt.pause(30)
+                    plt.ion()
                     input(f"Press [enter] to continue\n")
             elif (i % update_visualization_after_steps == 0):
                 plt.draw()
@@ -214,8 +215,8 @@ if __name__ == "__main__":
         'control_type': ControlType.STEER_ACCELERATE
     }
     all_cars = []
-    # car1 = track.place_car_of_type(DiscreteInputModeCar,x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params_1)
-    # all_cars.append(car1)
+    car1 = track.place_car_of_type(DiscreteInputModeCar,x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=control_params_1)
+    all_cars.append(car1)
     # car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params_1)
     # all_cars.append(car2)
     control_params_2 = {
@@ -232,4 +233,4 @@ if __name__ == "__main__":
     car3 = track.place_car_of_type(DiscreteInputModeCar, x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=50, interactive=True, saving=False, interactive_after_steps=25, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=50, interactive=True, saving=False, interactive_after_steps=5, update_visualization_after_steps=1, interactive_timeout=None)

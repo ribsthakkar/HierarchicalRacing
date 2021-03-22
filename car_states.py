@@ -5,7 +5,7 @@ from util import dist
 
 
 class CarState:
-    def __init__(self, x, y, dx, dy, d2x, d2y, heading, track):
+    def __init__(self, x, y, dx, dy, d2x, d2y, heading, length, width,  track):
         self.x = x
         self.y = y
         self.dx = dx
@@ -17,14 +17,16 @@ class CarState:
         self.side_slip = 0
         self.tpx = track.find_pos_index(0, x, y)
         self.mode = None
+        self.l = length
+        self.w = width
 
     def update(self, acceleration, steering_angle, mode, lr, lf, time_step, track, **kwargs):
         raise NotImplementedError()
 
 
 class FourModeCarState(CarState):
-    def __init__(self, x, y, dx, dy, d2x, d2y, heading, track):
-        super().__init__(x, y, dx, dy, d2x, d2y, heading, track)
+    def __init__(self, x, y, dx, dy, d2x, d2y, length, width, heading, track):
+        super().__init__(x, y, dx, dy, d2x, d2y, length, width, heading, track)
         self.mode_updates = {DriveModes.FOLLOW: self._update_follow_mode,
                              DriveModes.PASS: self._update_pass_mode,
                              DriveModes.RACE: self._update_race_mode,
@@ -93,8 +95,8 @@ class FourModeCarState(CarState):
 
 
 class InputModeCarState(CarState):
-    def __init__(self, x, y, dx, dy, d2x, d2y, heading, track, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle):
-        super().__init__(x, y, dx, dy, d2x, d2y, heading, track)
+    def __init__(self, x, y, dx, dy, d2x, d2y, heading,  track, length, width, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle):
+        super().__init__(x, y, dx, dy, d2x, d2y, heading, length, width, track)
         self.mode_manager = InputModes(max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle)
         self.mode = self.mode_manager.mode_from_velocity_heading(self.v, heading)
 
@@ -107,7 +109,7 @@ class InputModeCarState(CarState):
         """
         old_heading = self.heading
         old_v = self.v
-        self.v, self.heading, self.mode = self.mode_manager.try_switch(self.mode, mode[0], mode[1], time_step)
+        self.v, self.heading, self.mode = self.mode_manager.try_switch(self, mode[0], mode[1], time_step, cars_ahead=kwargs['cars_ahead'], cars_side=kwargs['cars_side'])
         acceleration = (self.v - old_v)/time_step
         dh = (self.heading - old_heading)/time_step
         avg_v = (self.v + old_v)/2
