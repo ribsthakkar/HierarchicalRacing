@@ -1,14 +1,11 @@
-import itertools
 import math
 from enum import Enum
 import numpy as np
 from scipy import optimize
 import scipy.stats as stats
-import shapely.geometry as geom
 
-from util import round_to_fraction, gravitational_acceleration
+from util import round_to_fraction, gravitational_acceleration, find_smallest_rotation, is_cw, TPI, rect_from_center
 
-TPI = 2 * math.pi
 
 class DriveModes(Enum):
     FOLLOW = 1
@@ -78,8 +75,8 @@ class InputModes:
     def _find_best_heading(self, car_state, targetv, targeth, other_trajectories, dt):
         mode = car_state.mode
         if math.isclose(targeth, mode[1]): return mode[1]
-        max_bounds = self._find_smallest_rotation(targeth, mode[1])
-        if self._is_cw(mode[1], targeth): bounds=(-max_bounds, 0)
+        max_bounds = find_smallest_rotation(targeth, mode[1])
+        if is_cw(mode[1], targeth): bounds=(max_bounds, 0)
         else: bounds=(0, max_bounds)
         def opt_h(h):
             d = mode[1] + h
@@ -108,20 +105,18 @@ class InputModes:
             if self._find_max_longitudnal_acc(mode, v, targeth, dt) <= self.max_acc and \
                     self._no_collisions_with_cars(car_state, targetv, targeth, other_trajectories, dt):
                 return -v
-            return 10000000
+            return 1000000
         result = optimize.minimize_scalar(opt_b, bounds=(mode[0], targetv), method='bounded')
-        return -result.x if result.x < 1000000 else mode[0]
-
-    def _is_cw(self, current, target):
-        return math.sin(current - target) > 0
-
-    def _find_smallest_rotation(self, target_h, current_h):
-        if self._is_cw(current_h, target_h):
-            rotation = current_h - target_h if current_h > target_h else current_h + TPI - target_h
-            return -rotation
+        if result.x < 1000000:
+            return -result.x
         else:
-            rotation = target_h - current_h if target_h > current_h else target_h + TPI - current_h
-            return rotation
+            def opt_b(v):
+                if self._find_max_longitudnal_acc(mode, v, targeth, dt) <= abs(self.max_brak) and \
+                        self._no_collisions_with_cars(car_state, targetv, targeth, other_trajectories, dt):
+                    return -v
+                return 1000000
+            result = optimize.minimize_scalar(opt_b, bounds=(0, targetv), method='bounded')
+            return -result.x if result.x < 1000000 else mode[0]
 
     def _pos_functions(self, xi, yi, vi, vf, hi, hf, dt):
         vxi = vi * math.cos(hi)
@@ -135,34 +130,21 @@ class InputModes:
         h_pos = lambda t: math.atan((vyi + ay*t)/(vxi + ax*t))
         return x_pos,y_pos, h_pos
 
-    def _rect_from_center(self, x, y, l, w, rot):
-        # Adapted from stackoverflow here: https://stackoverflow.com/questions/41898990/find-corners-of-a-rotated-rectangle-given-its-center-point-and-rotation
-        center = np.array([x, y])
-        v1 = np.array([math.cos(rot), math.sin(rot)])
-        v2 = np.array(-v1[1], v1[0])  # rotate by 90
-        v1 *= l/2
-        v2 *= w/2
-        points = np.vstack([center + v1 + v2,
-                            center - v1 + v2,
-                            center - v1 - v2,
-                            center + v1 - v2,])
-        return geom.Polygon(points)
-
     def _estimate_position_rectangles(self, state, dt):
         vi = state.v
         hi = state.heading
         hf = math.atan((state.dy + state.d2y*dt)/(state.dx + state.d2x*dt))
         vf = math.sqrt((state.dy + state.d2y*dt)**2 + (state.dx + state.d2x*dt)**2)
         x_pos_f, y_pos_f, h_pos_f = self._pos_functions(state.x, state.y, vi, vf, hi, hf, dt)
-        return [self._rect_from_center(x, y, state.l, state.w, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
-                                                                                     map(y_pos_f, np.linspace(0, dt)),
-                                                                                     map(h_pos_f, np.linspace(0, dt)))]
+        return [rect_from_center(x, y, state.l, state.w, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
+                                                                               map(y_pos_f, np.linspace(0, dt)),
+                                                                               map(h_pos_f, np.linspace(0, dt)))]
 
     def _generate_position_rectangles(self, state, targetv, targeth, dt):
         x_pos_f, y_pos_f, h_pos_f = self._pos_functions(state.x, state.y, state.v, targetv, state.heading, targeth, dt)
-        return [self._rect_from_center(x, y, state.l, state.w, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
-                                                                                     map(y_pos_f, np.linspace(0, dt)),
-                                                                                     map(h_pos_f, np.linspace(0, dt)))]
+        return [rect_from_center(x, y, state.l, state.w, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
+                                                                               map(y_pos_f, np.linspace(0, dt)),
+                                                                               map(h_pos_f, np.linspace(0, dt)))]
 
     def _no_collisions_with_cars(self, car_state, targetv, targeth, other_trajectories, dt):
         # to avoid collisions with cars and trajectories we need to make sure bounding boxes don't intersect as traveling
@@ -180,7 +162,7 @@ class InputModes:
             for car in cars_side:
                 other_trajectories[car] = self._estimate_position_rectangles(car, time_step)
         final_v = velocity
-        final_h = heading
+        final_h = math.fmod(heading, TPI) if heading > 0 else math.fmod(heading+TPI, TPI)
         for i in range(10):
             rvelocity, rheading = self.mode_from_velocity_heading(final_v, final_h)
             max_corn = self._find_max_cornering_acc(mode, rvelocity, rheading, time_step)
@@ -192,7 +174,7 @@ class InputModes:
                 print("Current Mode", mode, "Input Mode", (velocity, heading), "Resulting Mode", (rvelocity, rheading))
                 return rvelocity, rheading, (rvelocity, rheading)
             else:
-                if rvelocity >= mode[0] and max_long < self.max_acc:
+                if rvelocity >= mode[0] and max_long <= self.max_acc:
                     # Not enough power
                     print("not enough power")
                     best_v = self._find_best_acc(car_state, rvelocity, rheading, other_trajectories, time_step)
@@ -209,23 +191,18 @@ class InputModes:
                 else:
                     best_h = rheading
 
-                if best_v == mode[0]:
-                    final_v = mode[0]
-                else:
-                    mean_dv = (best_v - mode[0])
-                    sd = self.v_prec
-                    print("meandv", mean_dv)
-                    v_dist = stats.truncnorm((min(mean_dv - 1e-6, 0) - mean_dv) / sd, (max(mean_dv + 1e-6, 0) - mean_dv) / sd, loc=mean_dv, scale=sd)
-                    final_v = v_dist.rvs(1)[0] + mode[0]
+                mean_dv = (best_v - mode[0])
+                sd = self.v_prec
+                print("meandv", mean_dv)
+                v_dist = stats.truncnorm((min(mean_dv - 1e-6, 0) - mean_dv) / sd, (max(mean_dv + 1e-6, 0) - mean_dv) / sd, loc=mean_dv, scale=sd)
+                final_v = v_dist.rvs(1)[0] + mode[0]
 
-                if best_h == mode[1]:
-                    final_h = mode[1]
-                else:
-                    mean_dh = self._find_smallest_rotation(best_h, mode[1])
-                    sd = self.h_prec
-                    print("meandh", mean_dh)
-                    h_dist = stats.truncnorm((min(mean_dh - 1e-6, 0) - mean_dh) / sd, (max(mean_dh + 1e-6, 0) - mean_dh) / sd, loc=mean_dh, scale=sd)
-                    final_h = h_dist.rvs(1)[0] + mode[1]
+                mean_dh = find_smallest_rotation(best_h, mode[1])
+                sd = self.h_prec
+                print("meandh", mean_dh)
+                h_dist = stats.truncnorm((min(mean_dh - 1e-6, 0) - mean_dh) / sd, (max(mean_dh + 1e-6, 0) - mean_dh) / sd, loc=mean_dh, scale=sd)
+                final_h = h_dist.rvs(1)[0] + mode[1]
+                final_h = math.fmod(final_h, TPI) if final_h > 0 else math.fmod(final_h + TPI, TPI)
 
                 # rvelocity, rheading = final_v, final_h
                 # rvelocity, rheading = self.mode_from_velocity_heading(final_v, final_h)

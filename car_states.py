@@ -1,7 +1,7 @@
 import math
 
 from car_modes import DriveModes, InputModes
-from util import dist
+from util import dist, find_smallest_rotation
 
 
 class CarState:
@@ -26,7 +26,7 @@ class CarState:
 
 class FourModeCarState(CarState):
     def __init__(self, x, y, dx, dy, d2x, d2y, length, width, heading, track):
-        super().__init__(x, y, dx, dy, d2x, d2y, length, width, heading, track)
+        super().__init__(x, y, dx, dy, d2x, d2y, heading, length, width, track)
         self.mode_updates = {DriveModes.FOLLOW: self._update_follow_mode,
                              DriveModes.PASS: self._update_pass_mode,
                              DriveModes.RACE: self._update_race_mode,
@@ -111,7 +111,7 @@ class InputModeCarState(CarState):
         old_v = self.v
         self.v, self.heading, self.mode = self.mode_manager.try_switch(self, mode[0], mode[1], time_step, cars_ahead=kwargs['cars_ahead'], cars_side=kwargs['cars_side'])
         acceleration = (self.v - old_v)/time_step
-        dh = (self.heading - old_heading)/time_step
+        dh = find_smallest_rotation(self.heading, old_heading)/time_step if not math.isclose(self.heading - old_heading, 0, abs_tol=1e-6) else 0
         avg_v = (self.v + old_v)/2
         steering_angle = math.atan(dh * (lr + lf)/(avg_v * math.cos(self.side_slip)))
         new_dx = self.v * math.cos(self.heading + self.side_slip)

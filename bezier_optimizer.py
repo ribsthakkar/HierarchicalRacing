@@ -257,12 +257,12 @@ class BezierCar:
                                               bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[:self.num_cp], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
-                        total -= (30 / len(opponent_cars)) * min(0, con4(c) - (self.car_width / 2 + .5))
+                        total -= (60 / len(opponent_cars)) * min(0, con4(c) - (self.car_width / 2 + .5))
                 total -= 30 * acc_penalty(c)
                 # total -= 10 * vel_penalty(c)
                 # total -= 10 * steer_penalty(c)
                 total -= 20/(self.time_horizon/self.plan_time_delta) * sp
-                total += 30 * self.track.distance_to_center_custom_range(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon),
+                total += 25 * self.track.distance_to_center_custom_range(bezier_trajectory(c[:self.num_cp], t, self.bezier_order, self.time_horizon),
                                                                          bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon),
                                                                          self.ipx, self.ipx + self.max_point_horizon)
                 t += self.plan_time_delta

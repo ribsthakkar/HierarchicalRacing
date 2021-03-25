@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import os
 import math
 import sys
@@ -13,7 +14,9 @@ from car_models import FourModeCar, Car, DiscreteInputModeCar
 from car_modes import ControlType
 from static_optimizer import static_race_optimize
 from track import Track
-from car_profiles import f1_profile
+from car_profiles import f1_profile, sports_profile
+from util import rect_from_center, generate_heading_sweep
+
 old_stdin = sys.stdin
 
 class Simulator():
@@ -24,6 +27,15 @@ class Simulator():
             raise ValueError("The number of cars on track must be between 1 and 5")
         self.pool = Pool(processes=5)
 
+    def _check_for_collisions(self, car_boxes):
+        collision = False
+        for pair in itertools.combinations(car_boxes, r=2):
+            if pair[0].intersects(pair[1]):
+                car1_idx = car_boxes.index(pair[0])
+                car2_idx = car_boxes.index(pair[1])
+                print(f"COLLISION BETWEEN {self.cars[car1_idx]} AND {self.cars[car2_idx]}")
+                collision = True
+        return collision
     def simulate(self, time_step, update_frequency, total_steps, interactive, saving, interactive_after_steps=10,
                  update_visualization_after_steps=1, interactive_timeout=None):
         car_positions_x = {car: [] for car in self.cars}
@@ -47,11 +59,13 @@ class Simulator():
                 plt.plot(self.track.boundary2_x, self.track.boundary2_y, '.k-', label="Track Boundary Left")
                 plt.plot(self.track.center_x, self.track.center_y, '.g-', label="Center Trajectory")
                 plt.ion()
-            car_ordering = self.track.get_car_ordering()
-            for idx, car in enumerate(car_ordering):
-                t = 0
-                while t <= (update_frequency) + time_step / 2:
-                    acceleration, steering, mode = actions[idx].popleft()
+            t = 0
+            while t <= (update_frequency) + time_step / 2:
+                car_ordering = self.track.get_car_ordering()
+                self.track.update_cars_ahead_side(update_frequency)
+                for idx, car in enumerate(car_ordering):
+                    initial_idx = self.cars.index(car)
+                    acceleration, steering, mode = actions[initial_idx].popleft()
                     if car_ordering[idx].get_control_type() == ControlType.STEER_ACCELERATE:
                         acceleration, steering, mode = car_ordering[idx].input_steer_accelerate_command(acceleration, steering, mode, time_step)
                     elif car_ordering[idx].get_control_type() == ControlType.MODE_ONLY:
@@ -62,24 +76,32 @@ class Simulator():
                     car_velocities[car].append(car.state.v)
                     car_steering_angles[car].append(steering * 180/math.pi)
                     car_distances[car].append(car_distances[car][-1] + time_step * math.sqrt(car.state.v))
-                    t += time_step
-
-                if saving or interactive:
+                t += time_step
+            car_boxes = [None] * len(self.cars)
+            if saving or interactive:
+                for idx, car in enumerate(self.cars):
+                    initial_idx = self.cars.index(car)
                     plt.figure(1)
-                    plt.plot(car_positions_x[car], car_positions_y[car], colors[idx])
+                    plt.plot(car_positions_x[car], car_positions_y[car], colors[initial_idx])
+                    rect = rect_from_center(car.state.x, car.state.y, car.state.l, car.state.w, car. state.heading)
+                    car_boxes[initial_idx] = rect
+                    # sweep = generate_heading_sweep(car, update_frequency)
+                    # plt.plot(*sweep.exterior.xy, colors[initial_idx][1:])
+                    plt.plot(*rect.exterior.xy, colors[initial_idx][1:])
+                    plt.annotate(f"Car {initial_idx} t={i*update_frequency}", (car_positions_x[car][-1], car_positions_y[car][-1]), fontsize=3)
                     if saving:
                         plt.savefig(save_dir + f"/round_{i}_position.png")
                     plt.figure(2)
-                    plt.plot(car_distances[car], car_velocities[car], colors[idx])
+                    plt.plot(car_distances[car], car_velocities[car], colors[initial_idx])
                     if saving:
                         plt.savefig(save_dir + f"/round_{i}_velocities.png")
                     plt.figure(3)
-                    plt.plot(car_distances[car], car_steering_angles[car], colors[idx])
+                    plt.plot(car_distances[car], car_steering_angles[car], colors[initial_idx])
                     if saving:
                         plt.savefig(save_dir + f"/round_{i}_steering_angles.png")
-            self.track.update_cars_ahead_side(time_step)
-            if interactive and (i % interactive_after_steps == 0):
-                if interactive_timeout is not None:
+            collisions = self._check_for_collisions(car_boxes)
+            if (interactive and (i % interactive_after_steps == 0)) or collisions:
+                if interactive_timeout is not None and not collisions:
                     plt.draw()
                     plt.show()
                     sys.stdin = StringIO('Continuing...')
@@ -215,9 +237,9 @@ if __name__ == "__main__":
         'control_type': ControlType.STEER_ACCELERATE
     }
     all_cars = []
-    car1 = track.place_car_of_type(DiscreteInputModeCar,x=82, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=control_params_1)
+    car1 = track.place_car_of_type(DiscreteInputModeCar,x=67, y=343, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=f1_profile, optimizer_parameters=control_params_1)
     all_cars.append(car1)
-    # car2 = track.place_car_of_type(FourModeCar,x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=optimizer_params_1)
+    # car2 = track.place_car_of_type(FourModeCar,x=63, y=343, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=sports_profile, optimizer_parameters=control_params_1)
     # all_cars.append(car2)
     control_params_2 = {
         'optimizer': bezier_race_optimize,
@@ -230,7 +252,7 @@ if __name__ == "__main__":
         },
         'control_type': ControlType.STEER_ACCELERATE
     }
-    car3 = track.place_car_of_type(DiscreteInputModeCar, x=79, y=350, dx=-.1, dy=0, d2x=-6, d2y=0, heading=math.pi, car_profile=f1_profile, optimizer_parameters=control_params_2)
+    car3 = track.place_car_of_type(DiscreteInputModeCar, x=62, y=339, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=sports_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=50, interactive=True, saving=False, interactive_after_steps=5, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=100, interactive=True, saving=False, interactive_after_steps=5, update_visualization_after_steps=1, interactive_timeout=None)

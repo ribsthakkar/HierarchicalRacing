@@ -36,7 +36,7 @@ class Car:
 class FourModeCar(Car):
     def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, controller_parameters):
         super().__init__(car_profile, track, controller_parameters)
-        self.state = FourModeCarState(x, y, dx, dy, d2x, d2y, heading, track)
+        self.state = FourModeCarState(x, y, dx, dy, d2x, d2y, self.length, self.width, heading, track)
 
     def input_steer_accelerate_command(self, acceleration, steering_angle, mode, time_step):
         if steering_angle < -math.radians(self.max_steering_angle):

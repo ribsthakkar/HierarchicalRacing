@@ -6,7 +6,7 @@ import numpy as np
 import shapely.geometry as geom
 
 from bezier_util import dist
-from util import circ_slice
+from util import circ_slice, rect_from_center, generate_heading_sweep
 
 
 class Track():
@@ -53,27 +53,6 @@ class Track():
                 min_idx = i
         return min_idx
 
-    def _generate_arc_points(self, car, time_step, from_center=math.pi/12):
-        # Code snippet adapted from: https://stackoverflow.com/questions/30762329/how-to-create-polygons-with-arcs-in-shapely-or-a-better-library
-        centerx, centery = car.state.x, car.state.y
-        radius = car.state.v * time_step
-
-        start_angle, end_angle = car.state.heading-from_center, car.state.heading+from_center  # In degrees
-        numsegments = 100
-
-        # The coordinates of the arc
-        theta = np.linspace(start_angle, end_angle, numsegments)
-        x = centerx + radius * np.cos(theta)
-        y = centery + radius * np.sin(theta)
-        return np.column_stack([x, y])
-
-    def _generate_heading_sweep(self, car, time_step):
-        arc_points = self._generate_arc_points(car, time_step)
-        poly_points = np.vstack([arc_points, [car.state.x, car.state.y]])
-        sweep = geom.Polygon(poly_points)
-        return sweep
-
-
     def place_car_of_type(self, car_type, x, y, dx, dy, d2x, d2y, heading, car_profile, optimizer_parameters):
         car = car_type(x, y, dx, dy, d2x, d2y, heading, car_profile, self, optimizer_parameters)
         self.vehicles_on_track.append(car)
@@ -103,13 +82,13 @@ class Track():
         ordering = self.get_car_ordering()
         for i in range(len(ordering) - 1, -1, -1):
             car = ordering[i]
-            sweep = self._generate_heading_sweep(car, time_step)
+            sweep = generate_heading_sweep(car, time_step)
             self.cars_ahead[car] = []
             self.cars_side[car] = []
             for j in range(i):
                 if ordering[j].state.tpx == car.state.tpx:
                     self.cars_side[car].append(copy(ordering[j].state))
-                point = geom.Point(ordering[j].state.x, ordering[j].state.y)
-                if sweep.contains(point):
-                    self.cars_side[car].append(copy(ordering[j].state))
+                opponent = rect_from_center(ordering[j].state.x, ordering[j].state.y, ordering[j].state.l, ordering[j].state.w, ordering[j].state.heading)
+                if sweep.intersects(opponent):
+                    self.cars_ahead[car].append(copy(ordering[j].state))
         print(self.cars_ahead, self.cars_side)
