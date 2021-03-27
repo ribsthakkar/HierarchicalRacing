@@ -87,8 +87,9 @@ class Track():
             self.cars_side[car] = []
             for j in range(i):
                 if ordering[j].state.tpx == car.state.tpx:
-                    self.cars_side[car].append(copy(ordering[j].state))
-                opponent = rect_from_center(ordering[j].state.x, ordering[j].state.y, ordering[j].state.l, ordering[j].state.w, ordering[j].state.heading)
-                if sweep.intersects(opponent):
-                    self.cars_ahead[car].append(copy(ordering[j].state))
+                    self.cars_side[car].append((ordering[j].state))
+                else:
+                    opponent = rect_from_center(ordering[j].state.x, ordering[j].state.y, ordering[j].state.l, ordering[j].state.w, ordering[j].state.heading)
+                    if sweep.intersects(opponent):
+                        self.cars_ahead[car].append((ordering[j].state))
         print(self.cars_ahead, self.cars_side)

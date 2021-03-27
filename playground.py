@@ -9,7 +9,7 @@ import math
 from scipy import optimize
 import numpy as np
 from car_modes import TPI
-from util import round_to_fraction
+from util import round_to_fraction, rect_from_center, pos_estimate_functions
 
 initialv = 8
 initalh = math.pi/2
@@ -78,3 +78,17 @@ print(round_to_fraction(5.930465589273715, TPI/100))
 #
 # print(round_to_fraction(1.5, 0.5))
 # print(max(min(1.3, 100), .5))
+
+
+x_pos_f, y_pos_f, h_pos_f = pos_estimate_functions(58.018899971561595, 328.76792381280876, 9.0, 9.5, 4.618141200776996, 4.668406683234433, 0.1)
+adversary_rects =  [rect_from_center(x, y, 5, 3.5, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
+                                                                               map(y_pos_f, np.linspace(0, dt)),
+                                                                               map(h_pos_f, np.linspace(0, dt)))]
+
+x_pos_f, y_pos_f, h_pos_f = pos_estimate_functions(60.53389109098488, 332.6101952478349, 9.5, 10.0, 4.285132379496478, 4.341681047261094, 0.1)
+our_rects =  [rect_from_center(x, y, 5, 2, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
+                                                                               map(y_pos_f, np.linspace(0, dt)),
+                                                                               map(h_pos_f, np.linspace(0, dt)))]
+
+for ours, theirs in zip(our_rects, adversary_rects):
+    print(ours.intersection(theirs).area)

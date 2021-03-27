@@ -73,6 +73,7 @@ class BezierCar:
         self.max_gs = agent.max_gs
         self.max_steering_angle = agent.max_steering_angle
         self.acceleration_bound = agent.acc_profile
+        self.max_braking = agent.max_braking
         self.max_vel = agent.max_vel
         self.car_width = agent.width
         self.car_length = agent.length
@@ -239,14 +240,18 @@ class BezierCar:
                 sp = math.sqrt(x_p ** 2 + y_p ** 2)
                 ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
 
+                long_acc = 0.5 * (2 * x_pp * (x_p) + 2 * y_pp * (y_p)) / (math.sqrt((x_p) ** 2 + (y_p) ** 2))
+                if math.isclose(ac, abs(long_acc)) or math.isnan(long_acc) or math.isinf(long_acc):
+                    long_acc = ac
+                lat_acc = math.sqrt(ac**2 - long_acc**2)
                 def vel_penalty(c):
                     return min(0, self.max_vel - sp)
 
                 def acc_penalty(c):
-                    if sp >= 0.01 and ((x_p * x_pp + y_p * y_pp) / (sp * ac) <= .08):
-                        return min(0, self.max_gs * gravitational_acceleration - ac)
+                    if np.sign(x_p) == -np.sign(x_pp) and np.sign(y_p) == np.sign(y_pp):
+                        return min(0, abs(self.max_braking) - long_acc) + min(0, self.max_gs*gravitational_acceleration - lat_acc)
                     else:
-                        return min(0, self.acceleration_bound(sp) - ac)
+                        return min(0, self.acceleration_bound(sp) - long_acc) + min(0, self.max_gs*gravitational_acceleration - lat_acc)
 
                 def steer_penalty(c):
                     return min(0, self.max_steering_angle - abs(math.atan(((x_p * y_pp - y_p * x_pp) / (sp ** 1.5)) * self.car_length) * 180 / math.pi))
@@ -258,7 +263,7 @@ class BezierCar:
                                               bezier_trajectory(o.final_cp[:self.num_cp], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
                         total -= (60 / len(opponent_cars)) * min(0, con4(c) - (self.car_width / 2 + .5))
-                total -= 30 * acc_penalty(c)
+                total -= 50 * acc_penalty(c)
                 # total -= 10 * vel_penalty(c)
                 # total -= 10 * steer_penalty(c)
                 total -= 20/(self.time_horizon/self.plan_time_delta) * sp

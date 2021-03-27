@@ -1,8 +1,8 @@
+from shapely import geometry as geom
 import itertools
 import math
 
 import numpy as np
-from shapely import geometry as geom
 
 gravitational_acceleration = 9.8
 TPI = 2 * math.pi
@@ -25,6 +25,8 @@ def is_cw(current, target):
     return math.sin(current - target) > 0
 
 def find_smallest_rotation(target_h, current_h):
+    if math.isclose(target_h, current_h):
+        return 0
     if is_cw(current_h, target_h):
         rotation = target_h-current_h if current_h > target_h else -(current_h + TPI - target_h)
         return rotation
@@ -64,3 +66,22 @@ def generate_heading_sweep(car, time_step, from_center=math.pi/4):
     poly_points = np.vstack([arc_points, tr, br])
     sweep = geom.Polygon(poly_points)
     return sweep
+
+
+def pos_estimate_functions(xi, yi, vi, vf, hi, hf, dt):
+    vxi = vi * math.cos(hi)
+    vyi = vi * math.sin(hi)
+    vxf = vf * math.cos(hf)
+    vyf = vf * math.sin(hf)
+    ax = (vxf - vxi) / dt
+    ay = (vyf - vyi) / dt
+    x_pos = lambda t: xi +vxi*t+0.5*ax*t**2
+    y_pos = lambda t: yi + vyi*t+0.5*ay*t**2
+    h_pos = lambda t: math.atan2((vyi + ay*t),(vxi + ax*t))
+    return x_pos,y_pos, h_pos
+
+def is_greater_than(a, b, rel_tol = 1e-9, abs_tol=1e-6):
+    if math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol):
+        return False
+    else:
+        return a > b
