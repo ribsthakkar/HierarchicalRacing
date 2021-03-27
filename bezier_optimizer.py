@@ -273,7 +273,7 @@ class BezierCar:
                 t += self.plan_time_delta
             if opponent_cars:
                 for opp in opponent_cars:
-                    total -= (.25 / len(opponent_cars)) * (
+                    total -= (5 / len(opponent_cars)) * (
                                 self.track.find_pos_index(self.ipx, c[self.num_cp-1], c[self.num_cp*2-1]) -
                                 self.track.find_pos_index(opp.ipx, opp.final_cp[self.num_cp-1], opp.final_cp[self.num_cp*2-1]))
             total -= 0.2 * (c[-1] - self.ipx)

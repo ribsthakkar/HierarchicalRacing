@@ -92,15 +92,15 @@ class InputModes:
         targety = targetv*math.sin(targeth)
         def opt(x):
             max_c = max(self._find_max_cornering_acc(mode, x[0], x[1], dt) - self.max_corn, 0)
-            if x[0] >= mode[0]:
+            if is_greater_than(x[0], mode[0], rel_tol=0.001) or math.isclose(x[0], mode[0], rel_tol=0.001):
                 max_a = max(self._find_max_longitudnal_acc(mode, x[0], x[1], dt) - self.max_acc, 0)
             else:
                 max_a = max(self._find_max_longitudnal_acc(mode, x[0], x[1], dt) - abs(self.max_brak), 0)
             xx = x[0]*math.cos(x[1])
             xy = x[0]*math.sin(x[1])
-            return 5* dist(targetx, targety, xx, xy) + 20*self._area_of_collisions_with_cars(car_state, x[0], x[1], other_trajectories, dt) + \
-                   10 * max_c + 10 * max_a
-        result = optimize.minimize(opt, np.array([init_v, init_h]), bounds=bounds, options={'maxiter': 200})
+            return 3*dist(targetx, targety, xx, xy) + 5*self._area_of_collisions_with_cars(car_state, x[0], x[1], other_trajectories, dt) + \
+                   .5 * max_c + .5*max_a
+        result = optimize.minimize(opt, np.array([init_v, init_h]), bounds=bounds, options={'maxiter': 20000})
         return result.x[0], result.x[1]
 
     def _find_best_heading(self, car_state, targetv, targeth, other_trajectories, dt):
@@ -225,30 +225,18 @@ class InputModes:
             max_corn = self._find_max_cornering_acc(mode, rvelocity, rheading, time_step)
             max_long = self._find_max_longitudnal_acc(mode, rvelocity, rheading, time_step)
             print("Resulting V", rvelocity, "Resulting H", rheading)
+            speeding_up = (is_greater_than(rvelocity, mode[0], rel_tol=0.001) or math.isclose(rvelocity, mode[0], rel_tol=0.001))
             no_collisions = self._no_collisions_with_cars(car_state, rvelocity, rheading, other_trajectories, time_step)
-            within_acceleration = (rvelocity >= mode[0] or math.isclose(rvelocity, mode[0], rel_tol=0.001)) and \
-                             self._within_acc_limit(mode, rvelocity, rheading, time_step)
+            within_acceleration = speeding_up and self._within_acc_limit(mode, rvelocity, rheading, time_step)
             within_cornering = self._within_corn_limit(mode, rvelocity, rheading, time_step)
-            within_braking = (rvelocity < mode[0]) and self._within_braking_limit(mode, rvelocity, rheading, time_step)
+            within_braking = not speeding_up and self._within_braking_limit(mode, rvelocity, rheading, time_step)
             if ((within_acceleration or within_braking) and within_cornering and no_collisions) or (i == 9):
                 print("Current Mode", mode, "Input Mode", (velocity, heading), "Resulting Mode", (rvelocity, rheading))
                 return rvelocity, rheading, (rvelocity, rheading)
             else:
+                print(within_acceleration, within_braking, within_cornering, no_collisions)
                 best_v, best_h = rvelocity, rheading
-                if not within_acceleration:
-                    # Not enough power
-                    print("not enough power", max_long, self.max_acc)
-                    best_v = self._find_best_acc(car_state, best_v, best_h, other_trajectories, time_step)
-                elif not within_braking:
-                    # Lock up wheels
-                    print("lock up wheels", max_long, self.max_brak)
-                    best_v = self._find_best_braking(car_state, best_v, best_h, other_trajectories, time_step)
-                if not within_cornering:
-                    # understeer not enough aero
-                    print("not enough cornering grip", max_corn, self.max_corn)
-                    best_h = self._find_best_heading(car_state, best_v, best_h, other_trajectories, time_step)
-                if not no_collisions:
-                    best_v, best_h = self._find_best_collision_avoidance_vh_pair(car_state, targetv, targeth, best_v, best_h, other_trajectories, time_step)
+                best_v, best_h = self._find_best_collision_avoidance_vh_pair(car_state, targetv, targeth, best_v, best_h, other_trajectories, time_step)
                 mean_dv = (best_v - mode[0])
                 sd = self.v_prec
                 print("meandv", mean_dv)

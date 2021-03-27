@@ -260,4 +260,4 @@ if __name__ == "__main__":
     car3 = track.place_car_of_type(DiscreteInputModeCar, x=62, y=339, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=basicsports_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=100, interactive=True, saving=False, interactive_after_steps=6, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=100, interactive=True, saving=False, interactive_after_steps=12, update_visualization_after_steps=1, interactive_timeout=None)
