@@ -8,8 +8,9 @@ import shapely.geometry as geom
 from scipy.optimize import NonlinearConstraint, Bounds, basinhopping, LinearConstraint
 
 from bezier_util import bezier_acceleration, bezier_speed, bezier_trajectory, bezier_arc_length
-from car_modes import DriveModes
-from util import circ_slice, dist, gravitational_acceleration
+from car_modes import DriveModes, ControlType
+from util import circ_slice, dist, gravitational_acceleration, TPI
+
 
 def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
     agent_b_car = BezierCar(agent)
@@ -34,22 +35,35 @@ def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
     actions = deque()
     t = 0
     while t <= (replan_time) + input_update_time / 2:
-        x_p = bezier_speed(agent_b_car.final_cp[:agent_b_car.num_cp], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
-        x_pp = bezier_acceleration(agent_b_car.final_cp[:agent_b_car.num_cp], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
-        y_p = bezier_speed(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
-        y_pp = bezier_acceleration(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
-        sp = (x_p ** 2 + y_p ** 2)
-        if sp > 0:
-            acceleration = (x_p * x_pp + y_p * y_pp) / math.sqrt(sp)
+        if agent.get_control_type() == ControlType.STEER_ACCELERATE:
+            x_p = bezier_speed(agent_b_car.final_cp[:agent_b_car.num_cp], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
+            x_pp = bezier_acceleration(agent_b_car.final_cp[:agent_b_car.num_cp], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
+            y_p = bezier_speed(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
+            y_pp = bezier_acceleration(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t, agent_b_car.bezier_order, agent_b_car.time_horizon)
+            sp = (x_p ** 2 + y_p ** 2)
+            if sp > 0:
+                acceleration = (x_p * x_pp + y_p * y_pp) / math.sqrt(sp)
+            else:
+                acceleration = 0
+            # acceleration = math.sqrt(x_pp ** 2 + y_pp ** 2)
+            numerator = (x_p*y_pp - y_p*x_pp)
+            if sp != 0:
+                st_an = math.atan((numerator/(sp **1.5)) * agent_b_car.car_length)
+            else:
+                st_an = 0
+            actions.append((acceleration, st_an, DriveModes.RACE))
+        elif agent.get_control_type() == ControlType.MODE_ONLY:
+            x_p = bezier_speed(agent_b_car.final_cp[:agent_b_car.num_cp], t, agent_b_car.bezier_order,
+                               agent_b_car.time_horizon)
+            y_p = bezier_speed(agent_b_car.final_cp[agent_b_car.num_cp:agent_b_car.num_cp * 2], t,
+                               agent_b_car.bezier_order, agent_b_car.time_horizon)
+            sp = math.sqrt(x_p ** 2 + y_p ** 2)
+            heading = math.atan2(y_p, x_p)
+            if heading < 0: heading = heading + TPI
+            actions.append((sp, heading))
         else:
-            acceleration = 0
-        # acceleration = math.sqrt(x_pp ** 2 + y_pp ** 2)
-        numerator = (x_p*y_pp - y_p*x_pp)
-        if sp != 0:
-            st_an = math.atan((numerator/(sp **1.5)) * agent_b_car.car_length)
-        else:
-            st_an = 0
-        actions.append((acceleration, st_an, DriveModes.RACE))
+            print("Unknown control type")
+            exit(1)
         t += input_update_time
 
     return actions
@@ -262,7 +276,7 @@ class BezierCar:
                                               bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[:self.num_cp], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
-                        total -= (60 / len(opponent_cars)) * min(0, con4(c) - (self.car_width / 2 + .5))
+                        total -= (100 / len(opponent_cars)) * min(0, con4(c) - (max(self.car_width, self.car_length)))
                 total -= 50 * acc_penalty(c)
                 # total -= 10 * vel_penalty(c)
                 # total -= 10 * steer_penalty(c)
@@ -273,7 +287,7 @@ class BezierCar:
                 t += self.plan_time_delta
             if opponent_cars:
                 for opp in opponent_cars:
-                    total -= (5 / len(opponent_cars)) * (
+                    total -= (1 / len(opponent_cars)) * (
                                 self.track.find_pos_index(self.ipx, c[self.num_cp-1], c[self.num_cp*2-1]) -
                                 self.track.find_pos_index(opp.ipx, opp.final_cp[self.num_cp-1], opp.final_cp[self.num_cp*2-1]))
             total -= 0.2 * (c[-1] - self.ipx)

@@ -6,7 +6,7 @@ import scipy.stats as stats
 from scipy.optimize import Bounds
 
 from util import round_to_fraction, gravitational_acceleration, find_smallest_rotation, is_cw, TPI, rect_from_center, \
-    dist, pos_estimate_functions, is_greater_than
+    dist, pos_estimate_functions, is_greater_than, log_leq_barrier_function_value
 
 
 class DriveModes(Enum):
@@ -91,16 +91,16 @@ class InputModes:
         targetx = targetv*math.cos(targeth)
         targety = targetv*math.sin(targeth)
         def opt(x):
-            max_c = max(self._find_max_cornering_acc(mode, x[0], x[1], dt) - self.max_corn, 0)
+            max_c = log_leq_barrier_function_value(self._find_max_cornering_acc(mode, x[0], x[1], dt), self.max_corn, 0.01)
             if is_greater_than(x[0], mode[0], rel_tol=0.001) or math.isclose(x[0], mode[0], rel_tol=0.001):
-                max_a = max(self._find_max_longitudnal_acc(mode, x[0], x[1], dt) - self.max_acc, 0)
+                max_a = log_leq_barrier_function_value(self._find_max_longitudnal_acc(mode, x[0], x[1], dt),self.max_acc, 0.01)
             else:
-                max_a = max(self._find_max_longitudnal_acc(mode, x[0], x[1], dt) - abs(self.max_brak), 0)
+                max_a = log_leq_barrier_function_value(self._find_max_longitudnal_acc(mode, x[0], x[1], dt), abs(self.max_brak), 0.01)
             xx = x[0]*math.cos(x[1])
             xy = x[0]*math.sin(x[1])
             return 3*dist(targetx, targety, xx, xy) + 5*self._area_of_collisions_with_cars(car_state, x[0], x[1], other_trajectories, dt) + \
-                   .5 * max_c + .5*max_a
-        result = optimize.minimize(opt, np.array([init_v, init_h]), bounds=bounds, options={'maxiter': 20000})
+                   max_c + max_a
+        result = optimize.minimize(opt, np.array([init_v, init_h]), bounds=bounds)
         return result.x[0], result.x[1]
 
     def _find_best_heading(self, car_state, targetv, targeth, other_trajectories, dt):
@@ -169,7 +169,6 @@ class InputModes:
                 return -v
             return 1000000
         result = optimize.minimize_scalar(opt_b, bounds=(mode[0], targetv), method='bounded')
-        print("initial acc try", result.fun)
         if result.fun < 1000000:
             return abs(result.x)
         else:
@@ -218,38 +217,51 @@ class InputModes:
         if cars_side and len(cars_side):
             for car in cars_side:
                 other_trajectories[car] = self._estimate_position_rectangles(car, time_step)
-        final_v = velocity
-        final_h = math.fmod(heading, TPI) if heading > 0 else math.fmod(heading+TPI, TPI)
-        for i in range(10):
+        best_v = velocity
+        best_h = math.fmod(heading, TPI) if heading > 0 else math.fmod(heading+TPI, TPI)
+        rvelocity, rheading = self.mode_from_velocity_heading(best_v, best_h)
+        max_corn = self._find_max_cornering_acc(mode, rvelocity, rheading, time_step)
+        max_long = self._find_max_longitudnal_acc(mode, rvelocity, rheading, time_step)
+        speeding_up = (is_greater_than(rvelocity, mode[0], rel_tol=0.001) or math.isclose(rvelocity, mode[0], rel_tol=0.001))
+        no_collisions = self._no_collisions_with_cars(car_state, rvelocity, rheading, other_trajectories, time_step)
+        within_acceleration = speeding_up and self._within_acc_limit(mode, rvelocity, rheading, time_step)
+        within_cornering = self._within_corn_limit(mode, rvelocity, rheading, time_step)
+        within_braking = not speeding_up and self._within_braking_limit(mode, rvelocity, rheading, time_step)
+        if (within_acceleration or within_braking) and within_cornering and no_collisions:
+            print("Current Mode", mode, "Input Mode", (velocity, heading), "Resulting Mode", (rvelocity, rheading))
+            return rvelocity, rheading, (rvelocity, rheading)
+        else:
+            print("Within acceleration limit:" if speeding_up else "Within braking limit: ", within_acceleration if speeding_up else within_braking, max_long, self.max_acc if speeding_up else self.max_brak)
+            print("Within cornering limit: ", within_cornering, max_corn, self.max_corn)
+            print("No collsions: ", no_collisions)
+            if speeding_up and not within_acceleration:
+                # Not enough power
+                rvelocity = self._find_best_acc(car_state, rvelocity, rheading, other_trajectories, time_step)
+            elif not speeding_up and not within_braking:
+                # Lock up wheels
+                rvelocity = self._find_best_braking(car_state, rvelocity, rheading, other_trajectories, time_step)
+            if not within_cornering:
+                # understeer not enough aero
+                rheading = self._find_best_heading(car_state, rvelocity, rheading, other_trajectories, time_step)
+            best_v, best_h = self._find_best_collision_avoidance_vh_pair(car_state, targetv, targeth, rvelocity, rheading, other_trajectories, time_step)
+            best_h = math.fmod(heading, TPI) if heading > 0 else math.fmod(heading + TPI, TPI)
+            mean_dv = (best_v - mode[0])
+            sd = self.v_prec
+            print("meandv", mean_dv)
+            v_dist = stats.truncnorm((min(mean_dv - 1e-6, 0) - mean_dv) / sd,
+                                     (max(mean_dv + 1e-6, 0) - mean_dv) / sd, loc=mean_dv, scale=sd)
+            final_v = v_dist.rvs(1)[0] + mode[0]
+
+            mean_dh = find_smallest_rotation(best_h, mode[1])
+            sd = self.h_prec
+            print("meandh", mean_dh)
+            h_dist = stats.truncnorm((min(mean_dh - 1e-6, 0) - mean_dh) / sd,
+                                     (max(mean_dh + 1e-6, 0) - mean_dh) / sd, loc=mean_dh, scale=sd)
+            final_h = h_dist.rvs(1)[0] + mode[1]
+            final_h = math.fmod(final_h, TPI) if final_h > 0 else math.fmod(final_h + TPI, TPI)
             rvelocity, rheading = self.mode_from_velocity_heading(final_v, final_h)
-            max_corn = self._find_max_cornering_acc(mode, rvelocity, rheading, time_step)
-            max_long = self._find_max_longitudnal_acc(mode, rvelocity, rheading, time_step)
-            print("Resulting V", rvelocity, "Resulting H", rheading)
-            speeding_up = (is_greater_than(rvelocity, mode[0], rel_tol=0.001) or math.isclose(rvelocity, mode[0], rel_tol=0.001))
-            no_collisions = self._no_collisions_with_cars(car_state, rvelocity, rheading, other_trajectories, time_step)
-            within_acceleration = speeding_up and self._within_acc_limit(mode, rvelocity, rheading, time_step)
-            within_cornering = self._within_corn_limit(mode, rvelocity, rheading, time_step)
-            within_braking = not speeding_up and self._within_braking_limit(mode, rvelocity, rheading, time_step)
-            if ((within_acceleration or within_braking) and within_cornering and no_collisions) or (i == 9):
-                print("Current Mode", mode, "Input Mode", (velocity, heading), "Resulting Mode", (rvelocity, rheading))
-                return rvelocity, rheading, (rvelocity, rheading)
-            else:
-                print(within_acceleration, within_braking, within_cornering, no_collisions)
-                best_v, best_h = rvelocity, rheading
-                best_v, best_h = self._find_best_collision_avoidance_vh_pair(car_state, targetv, targeth, best_v, best_h, other_trajectories, time_step)
-                mean_dv = (best_v - mode[0])
-                sd = self.v_prec
-                print("meandv", mean_dv)
-                v_dist = stats.truncnorm((min(mean_dv - 1e-6, 0) - mean_dv) / sd, (max(mean_dv + 1e-6, 0) - mean_dv) / sd, loc=mean_dv, scale=sd)
-                final_v = v_dist.rvs(1)[0] + mode[0]
-
-                mean_dh = find_smallest_rotation(best_h, mode[1])
-                sd = self.h_prec
-                print("meandh", mean_dh)
-                h_dist = stats.truncnorm((min(mean_dh - 1e-6, 0) - mean_dh) / sd, (max(mean_dh + 1e-6, 0) - mean_dh) / sd, loc=mean_dh, scale=sd)
-                final_h = h_dist.rvs(1)[0] + mode[1]
-                final_h = math.fmod(final_h, TPI) if final_h > 0 else math.fmod(final_h + TPI, TPI)
-
+            print("Current Mode", mode, "Input Mode", (velocity, heading), "Resulting Mode", (rvelocity, rheading))
+            return rvelocity, rheading, (rvelocity, rheading)
 
 
 class ControlType(Enum):

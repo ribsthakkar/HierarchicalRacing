@@ -80,6 +80,7 @@ class FourModeCarState(CarState):
                     acceleration = max(kwargs['max_braking'], acceleration - 0.05)
                     new_v = self.v + acceleration * time_step
                     if new_v < 0:
+                        self.old_v = self.v
                         self.v = 0
                         return acceleration, steering_angle, mode
                     collision = True

@@ -8,6 +8,7 @@ from threading import Timer
 from typing import List
 from pathos.multiprocessing import  ProcessingPool as Pool
 import matplotlib.pyplot as plt
+plt.switch_backend('Qt5Agg')
 
 from bezier_optimizer import bezier_race_optimize
 from car_models import FourModeCar, Car, DiscreteInputModeCar
@@ -69,12 +70,15 @@ class Simulator():
                 for idx, car in enumerate(car_ordering):
                     initial_idx = self.cars.index(car)
                     print("CAR:", initial_idx, "Time: ", t)
-                    acceleration, steering, mode = actions[initial_idx].popleft()
                     if car_ordering[idx].get_control_type() == ControlType.STEER_ACCELERATE:
+                        acceleration, steering, mode = actions[initial_idx].popleft()
                         acceleration, steering, mode = car_ordering[idx].input_steer_accelerate_command(acceleration, steering, mode, time_step)
                     elif car_ordering[idx].get_control_type() == ControlType.MODE_ONLY:
+                        mode = actions[initial_idx].popleft()
                         acceleration, steering, mode = car_ordering[idx].input_mode_command(mode, time_step)
-
+                    else:
+                        print("unknown control type")
+                        exit(1)
                     car_positions_x[car].append(car.state.x)
                     car_positions_y[car].append(car.state.y)
                     car_velocities[car].append(car.state.v)
@@ -244,8 +248,8 @@ if __name__ == "__main__":
     all_cars = []
     car1 = track.place_car_of_type(DiscreteInputModeCar,x=67, y=343, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=f1_profile, optimizer_parameters=control_params_1)
     all_cars.append(car1)
-    # car2 = track.place_car_of_type(FourModeCar,x=63, y=343, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=sports_profile, optimizer_parameters=control_params_1)
-    # all_cars.append(car2)
+    car2 = track.place_car_of_type(DiscreteInputModeCar,x=60, y=341, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=mclaren720s_profile, optimizer_parameters=control_params_1)
+    all_cars.append(car2)
     control_params_2 = {
         'optimizer': bezier_race_optimize,
         'optimizer_params': {
@@ -257,7 +261,7 @@ if __name__ == "__main__":
         },
         'control_type': ControlType.STEER_ACCELERATE
     }
-    car3 = track.place_car_of_type(DiscreteInputModeCar, x=62, y=339, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=basicsports_profile, optimizer_parameters=control_params_2)
+    car3 = track.place_car_of_type(DiscreteInputModeCar, x=60, y=335, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=basicsports_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=100, interactive=True, saving=False, interactive_after_steps=12, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=100, interactive=True, saving=False, interactive_after_steps=50, update_visualization_after_steps=1, interactive_timeout=None)
