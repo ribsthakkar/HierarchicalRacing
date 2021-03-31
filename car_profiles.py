@@ -54,13 +54,13 @@ basicsports_profile = {
 }
 
 def example_acc_profile(sp):
-    if 0 <= sp < 10:
-        return 5
+    if 0 <= sp < 3:
+        return 1
     else:
         return 1
 
 example_profile = {
-    'max_velocity': 10,
+    'max_velocity': 3,
     'max_acceleration': 1,
     'acceleration_profile': example_acc_profile,
     'car_width': .18,

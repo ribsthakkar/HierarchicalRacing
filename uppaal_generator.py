@@ -30,10 +30,10 @@ def generate_agent_template(agent: Car, num_steps, time_step):
     declaration = etree.SubElement(template, "declaration")
     declaration.text = "clock dt = 0.0;" \
                        "clock main = 0.0;" \
-                       f"double v = {agent.state.v};"  \
-                        f"double h = {agent.state.heading};"  \
-                        f"double  x = {agent.state.x};"  \
-                        f"double  y = {agent.state.y};"  \
+                       f"double v = {float(agent.state.v)};"  \
+                        f"double h = {float(agent.state.heading)};"  \
+                        f"double  x = {float(agent.state.x)};"  \
+                        f"double  y = {float(agent.state.y)};"  \
                         "void new_xy(double vi, double vf, double hi, double hf) \
                         { \
                             x = x + cos((hi + hf)/2)*((vi+vf)/2) * rate; \
@@ -81,7 +81,7 @@ def generate_agent_template(agent: Car, num_steps, time_step):
     etree.SubElement(transition, "source", ref=f"id1")
     etree.SubElement(transition, "target", ref=f"id{initial_transition_id}")
     guard = etree.SubElement(transition, "label", kind="guard")
-    guard.text = "dt >= 0 && main <= T"
+    guard.text = "dt >= 0 && main <= num_steps - 1"
     assignment = etree.SubElement(transition, "label", kind="assignment")
     assignment.text = f"dt=0, main = 0"
 
@@ -125,7 +125,7 @@ def generate_agent_template(agent: Car, num_steps, time_step):
         etree.SubElement(transition, "source", ref=ids[mp])
         etree.SubElement(transition, "target", ref=f"id{count}")
         guard = etree.SubElement(transition, "label", kind="guard")
-        guard.text = "main >= T"
+        guard.text = "main >= num_steps"
 
     return template
 
@@ -170,6 +170,6 @@ if __name__ == "__main__":
         },
         'control_type': ControlType.STEER_ACCELERATE
     }
-    car = DiscreteInputModeCar(100, 100, .2, .1, .2, .1, math.pi/2, example_profile, None, control_params_1)
+    car = DiscreteInputModeCar(100.0, 100.0, .2, .1, .2, .1, math.pi/2, example_profile, None, control_params_1)
     generate_uppaal_xml([car], 10, 0.5, None)
     pass
