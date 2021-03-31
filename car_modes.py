@@ -91,15 +91,16 @@ class InputModes:
         targetx = targetv*math.cos(targeth)
         targety = targetv*math.sin(targeth)
         def opt(x):
-            max_c = log_leq_barrier_function_value(self._find_max_cornering_acc(mode, x[0], x[1], dt), self.max_corn, 0.01)
+            max_c = (max(0, self._find_max_cornering_acc(mode, x[0], x[1], dt) - self.max_corn))**2
             if is_greater_than(x[0], mode[0], rel_tol=0.001) or math.isclose(x[0], mode[0], rel_tol=0.001):
-                max_a = log_leq_barrier_function_value(self._find_max_longitudnal_acc(mode, x[0], x[1], dt),self.max_acc, 0.01)
+                max_a = (max(0, self._find_max_longitudnal_acc(mode, x[0], x[1], dt) - self.max_acc))**2
             else:
-                max_a = log_leq_barrier_function_value(self._find_max_longitudnal_acc(mode, x[0], x[1], dt), abs(self.max_brak), 0.01)
+                max_a = (max(0, self._find_max_longitudnal_acc(mode, x[0], x[1], dt) - abs(self.max_brak)))**2
             xx = x[0]*math.cos(x[1])
             xy = x[0]*math.sin(x[1])
-            return 3*dist(targetx, targety, xx, xy) + 5*self._area_of_collisions_with_cars(car_state, x[0], x[1], other_trajectories, dt) + \
-                   max_c + max_a
+            return dist(targetx, targety, xx, xy) + 500*self._area_of_collisions_with_cars(car_state, x[0], x[1], other_trajectories, dt) - 5*x[0] + \
+                   0.5*max_c + 0.5*max_a
+        print(init_v, init_h)
         result = optimize.minimize(opt, np.array([init_v, init_h]), bounds=bounds)
         return result.x[0], result.x[1]
 
@@ -112,69 +113,33 @@ class InputModes:
             max_bounds = find_smallest_rotation(targeth, mode[1])
         if is_cw(mode[1], targeth):
             bounds=(max_bounds, 0)
-            sign = -1
         else:
             bounds=(0, max_bounds)
-            sign = 1
         def opt_h(h):
             d = mode[1] + h
-            if self._within_corn_limit(mode, targetv, d, dt) and \
-                    self._no_collisions_with_cars(car_state, targetv, d, other_trajectories, dt):
-                return -abs(h)
-            return 1000000
+            max_c = (max(0, self._find_max_cornering_acc(mode, targetv, d, dt) - self.max_corn))**2
+            # area = self._area_of_collisions_with_cars(car_state, targetv, d, other_trajectories, dt)
+            return max_c*0.5 + abs(d-targeth)
         result = optimize.minimize_scalar(opt_h, bounds=bounds, method='bounded')
-        print("Original turn direction", result.fun)
-        if result.fun < 1000000:
-            return result.x*sign + mode[1]
-        else:
-            if is_cw(mode[1], targeth):
-                bounds = (0, TPI-mode[1])
-            else:
-                bounds = (mode[1]-TPI, 0)
-            def opt_h(h):
-                d = mode[1] + h
-                if self._within_corn_limit(mode, targetv, d, dt):
-                    return abs(h)
-                return 1000000
-            result = optimize.minimize_scalar(opt_h, bounds=bounds, method='bounded')
-            print("Opposite turn direction", result.fun)
-            return -result.x*sign + mode[1] if result.fun < 1000000 else mode[1]
+        return result.x + mode[1]
 
     def _find_best_braking(self, car_state, targetv, targeth, other_trajectories, dt):
         mode = car_state.mode
         if math.isclose(targetv, mode[0]): targetv = mode[0] - 1e-2
         def opt_b(v):
-            if self._within_braking_limit(mode, v, targeth, dt) and \
-                    self._no_collisions_with_cars(car_state, v, targeth, other_trajectories, dt):
-                return v
-            return 1000000
+            max_a = (max(0, self._find_max_longitudnal_acc(mode, v, targeth, dt) - self.max_acc)) ** 2
+            return max_a * 0.5 + abs(v-targetv)
         result = optimize.minimize_scalar(opt_b, bounds=(targetv, mode[0]), method='bounded')
-        if result.fun < 1000000:
-            return abs(result.x)
-        else:
-            def opt_b(v):
-                if self._within_acc_limit(mode, v, targeth, dt) and \
-                        self._no_collisions_with_cars(car_state, targetv, targeth, other_trajectories, dt):
-                    return -v
-                return 1000000
-            result = optimize.minimize_scalar(opt_b, bounds=(0, targetv), method='bounded')
-            return abs(result.x) if result.fun < 1000000 else mode[0]
+        return abs(result.x)
 
     def _find_best_acc(self, car_state, targetv, targeth, other_trajectories, dt):
         mode = car_state.mode
         if math.isclose(targetv, mode[0], rel_tol=0.001): targetv = mode[0] + self.v_prec
         def opt_b(v):
-            if self._within_acc_limit(mode, v, targeth, dt) and \
-                    self._no_collisions_with_cars(car_state, v, targeth, other_trajectories, dt):
-                return -v
-            return 1000000
+            max_a = (max(0, self._find_max_longitudnal_acc(mode, v, targeth, dt) - self.max_acc)) ** 2
+            return max_a * 0.5 + abs(v-targetv)
         result = optimize.minimize_scalar(opt_b, bounds=(mode[0], targetv), method='bounded')
-        if result.fun < 1000000:
-            return abs(result.x)
-        else:
-            result = optimize.minimize_scalar(opt_b, bounds=(0, targetv), method='bounded')
-            print("braking try", result.fun)
-            return abs(result.x) if result.fun < 1000000 else mode[0]
+        return abs(result.x)
 
     def _estimate_position_rectangles(self, state, dt):
         # vi = state.v
@@ -234,17 +199,20 @@ class InputModes:
             print("Within acceleration limit:" if speeding_up else "Within braking limit: ", within_acceleration if speeding_up else within_braking, max_long, self.max_acc if speeding_up else self.max_brak)
             print("Within cornering limit: ", within_cornering, max_corn, self.max_corn)
             print("No collsions: ", no_collisions)
-            if speeding_up and not within_acceleration:
+            if speeding_up and (not within_acceleration):
                 # Not enough power
-                rvelocity = self._find_best_acc(car_state, rvelocity, rheading, other_trajectories, time_step)
-            elif not speeding_up and not within_braking:
+                new_rvelocity = self._find_best_acc(car_state, rvelocity, rheading, other_trajectories, time_step)
+            elif not speeding_up and (not within_braking):
                 # Lock up wheels
-                rvelocity = self._find_best_braking(car_state, rvelocity, rheading, other_trajectories, time_step)
+                new_rvelocity = self._find_best_braking(car_state, rvelocity, rheading, other_trajectories, time_step)
+            else:
+                new_rvelocity = rvelocity
             if not within_cornering:
                 # understeer not enough aero
-                rheading = self._find_best_heading(car_state, rvelocity, rheading, other_trajectories, time_step)
-            best_v, best_h = self._find_best_collision_avoidance_vh_pair(car_state, targetv, targeth, rvelocity, rheading, other_trajectories, time_step)
-            best_h = math.fmod(heading, TPI) if heading > 0 else math.fmod(heading + TPI, TPI)
+                new_rheading = self._find_best_heading(car_state, rvelocity, rheading, other_trajectories, time_step)
+            else:
+                new_rheading = rheading
+            best_v, best_h = self._find_best_collision_avoidance_vh_pair(car_state, targetv, targeth, new_rvelocity, new_rheading, other_trajectories, time_step)
             mean_dv = (best_v - mode[0])
             sd = self.v_prec
             print("meandv", mean_dv)

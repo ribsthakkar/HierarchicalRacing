@@ -88,8 +88,9 @@ def is_greater_than(a, b, rel_tol = 1e-9, abs_tol=1e-6):
 
 
 def log_barrier_function_value(x, b):
+    if x > b: return (x-b)*999
     return -math.log(b-x)
 
-def log_leq_barrier_function_value(x, b, rel_tol=1e-5):
-    if x > (b+1)*(1+rel_tol): return 999999999
-    return -math.log((b+1)*(1+rel_tol)-x)
+def log_leq_barrier_function_value(x, b, rel_tol=1e-5, base=math.e):
+    if x > (b+1)*(1+rel_tol): return (x-(b+1)*rel_tol)*-math.log(1e-9, base)
+    return -math.log((b+1)*(1+rel_tol)-x, base)

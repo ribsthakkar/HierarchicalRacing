@@ -37,13 +37,13 @@ mclaren720s_profile = {
 }
 
 def basicsports_acc_profile(sp):
-    if 0 <= sp < 70:
+    if 0 <= sp < 40:
         return 5
     else:
         return 1
 
 basicsports_profile = {
-    'max_velocity': 70,
+    'max_velocity': 40,
     'max_acceleration': 5,
     'acceleration_profile': basicsports_acc_profile,
     'car_width': 1.8,

@@ -241,7 +241,8 @@ if __name__ == "__main__":
             'max_point_horizon': 150,
             'bezier_order': 6,
             'plan_time_horizon': 5,
-            'plan_time_precision': .5,
+            'plan_time_precision': .1,
+            'level': 1
         },
         'control_type': ControlType.STEER_ACCELERATE
     }
@@ -257,11 +258,12 @@ if __name__ == "__main__":
             'max_point_horizon': 150,
             'bezier_order': 6,
             'plan_time_horizon': 5,
-            'plan_time_precision': .5,
+            'plan_time_precision': .1,
+            'level': 0
         },
         'control_type': ControlType.STEER_ACCELERATE
     }
     car3 = track.place_car_of_type(DiscreteInputModeCar, x=60, y=335, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=basicsports_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=100, interactive=True, saving=False, interactive_after_steps=50, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=200, interactive=True, saving=False, interactive_after_steps=85, update_visualization_after_steps=1, interactive_timeout=None)

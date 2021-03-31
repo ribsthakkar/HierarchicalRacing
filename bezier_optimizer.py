@@ -9,13 +9,14 @@ from scipy.optimize import NonlinearConstraint, Bounds, basinhopping, LinearCons
 
 from bezier_util import bezier_acceleration, bezier_speed, bezier_trajectory, bezier_arc_length
 from car_modes import DriveModes, ControlType
-from util import circ_slice, dist, gravitational_acceleration, TPI
+from util import circ_slice, dist, gravitational_acceleration, TPI, log_leq_barrier_function_value, is_greater_than, \
+    log_barrier_function_value
 
 
 def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
     agent_b_car = BezierCar(agent)
     opp_b_cars = list(map(lambda c: BezierCar(c), opponent_cars))
-    if len(opponent_cars):
+    if len(opponent_cars) and agent.control_params['optimizer_params']['level'] > 0:
         print("Opponent Optimization")
         for opp in opp_b_cars:
             opp.race_optimize()
@@ -23,15 +24,18 @@ def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
         print("Our Optimization given Opponent Optimization Part 1")
         agent_b_car.race_optimize(opp_b_cars)
 
-        print("Opponent Optimization given Our Optimization")
-        opp_b_cars.append(agent_b_car)
-        for opp in opp_b_cars:
-            if opp == agent_b_car: continue
-            opp.race_optimize(opp_b_cars)
+        if agent.control_params['optimizer_params']['level'] > 1:
+            print("Opponent Optimization given Our Optimization")
+            opp_b_cars.append(agent_b_car)
+            for opp in opp_b_cars:
+                if opp == agent_b_car: continue
+                opp.race_optimize(opp_b_cars)
 
-        print("Our Optimization given Opponent Optimization Part 2")
-        opp_b_cars.remove(agent_b_car)
-    agent_b_car.race_optimize(opp_b_cars)
+            print("Our Optimization given Opponent Optimization Part 2")
+            opp_b_cars.remove(agent_b_car)
+            agent_b_car.race_optimize(opp_b_cars)
+    else:
+        agent_b_car.race_optimize([])
     actions = deque()
     t = 0
     while t <= (replan_time) + input_update_time / 2:
@@ -45,7 +49,6 @@ def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
                 acceleration = (x_p * x_pp + y_p * y_pp) / math.sqrt(sp)
             else:
                 acceleration = 0
-            # acceleration = math.sqrt(x_pp ** 2 + y_pp ** 2)
             numerator = (x_p*y_pp - y_p*x_pp)
             if sp != 0:
                 st_an = math.atan((numerator/(sp **1.5)) * agent_b_car.car_length)
@@ -170,8 +173,8 @@ class BezierCar:
         x[self.num_cp * 2 - 1] = target_y
         self.lb[self.num_cp - 1] = target_x
         self.lb[self.num_cp * 2 - 1] = target_y
-        self.ub[self.num_cp - 1] = target_x
-        self.ub[self.num_cp * 2 - 1] = target_y
+        self.ub[self.num_cp - 1] = target_x + 1e-6
+        self.ub[self.num_cp * 2 - 1] = target_y + 1e-6
         x[self.num_cp * 2] = self.min_point_horizon
         self.bounds = Bounds(self.lb, self.ub)
         return x
@@ -218,10 +221,10 @@ class BezierCar:
         for i in range(3, self.num_cp-1): lb.append(0)
         lb.append(target_y)
         lb.append(self.min_point_horizon)
-        ub = [init_x, c1x, c2x]
+        ub = [init_x+1e-6, c1x+1e-6, c2x+1e-6]
         for i in range(3, self.num_cp-1): ub.append(850)
         ub.append(target_x)
-        ub += [init_y, c1y, c2y]
+        ub += [init_y+1e-6, c1y+1e-6, c2y+1e-6]
         for i in range(3, self.num_cp-1): ub.append(650)
         ub.append(target_y)
         ub.append(self.max_point_horizon)
@@ -252,23 +255,19 @@ class BezierCar:
                 y_p = bezier_speed(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
                 y_pp = bezier_acceleration(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon)
                 sp = math.sqrt(x_p ** 2 + y_p ** 2)
+                sp1 = math.sqrt((x_p + x_pp*self.plan_time_delta)**2 + (y_p + y_pp*self.plan_time_delta)**2)
                 ac = math.sqrt(x_pp ** 2 + y_pp ** 2)
 
                 long_acc = 0.5 * (2 * x_pp * (x_p) + 2 * y_pp * (y_p)) / (math.sqrt((x_p) ** 2 + (y_p) ** 2))
                 if math.isclose(ac, abs(long_acc)) or math.isnan(long_acc) or math.isinf(long_acc):
                     long_acc = ac
                 lat_acc = math.sqrt(ac**2 - long_acc**2)
-                def vel_penalty(c):
-                    return min(0, self.max_vel - sp)
 
                 def acc_penalty(c):
-                    if np.sign(x_p) == -np.sign(x_pp) and np.sign(y_p) == np.sign(y_pp):
+                    if is_greater_than(sp1, sp, rel_tol=0.001) or math.isclose(sp1, sp, rel_tol=0.001):
                         return min(0, abs(self.max_braking) - long_acc) + min(0, self.max_gs*gravitational_acceleration - lat_acc)
                     else:
                         return min(0, self.acceleration_bound(sp) - long_acc) + min(0, self.max_gs*gravitational_acceleration - lat_acc)
-
-                def steer_penalty(c):
-                    return min(0, self.max_steering_angle - abs(math.atan(((x_p * y_pp - y_p * x_pp) / (sp ** 1.5)) * self.car_length) * 180 / math.pi))
 
                 if opponent_cars:
                     for o in opponent_cars:
@@ -276,7 +275,7 @@ class BezierCar:
                                               bezier_trajectory(c[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[:self.num_cp], t, self.bezier_order, self.time_horizon),
                                               bezier_trajectory(o.final_cp[self.num_cp:self.num_cp*2], t, self.bezier_order, self.time_horizon))
-                        total -= (100 / len(opponent_cars)) * min(0, con4(c) - (max(self.car_width, self.car_length)))
+                        total -= (500) * min(0, con4(c) - (math.sqrt(self.car_width**2 + self.car_length**2)))
                 total -= 50 * acc_penalty(c)
                 # total -= 10 * vel_penalty(c)
                 # total -= 10 * steer_penalty(c)
@@ -287,7 +286,7 @@ class BezierCar:
                 t += self.plan_time_delta
             if opponent_cars:
                 for opp in opponent_cars:
-                    total -= (1 / len(opponent_cars)) * (
+                    total -= (6 / len(opponent_cars)) * (
                                 self.track.find_pos_index(self.ipx, c[self.num_cp-1], c[self.num_cp*2-1]) -
                                 self.track.find_pos_index(opp.ipx, opp.final_cp[self.num_cp-1], opp.final_cp[self.num_cp*2-1]))
             total -= 0.2 * (c[-1] - self.ipx)
