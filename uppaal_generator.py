@@ -81,7 +81,7 @@ def generate_agent_template(agent: Car, num_steps, time_step):
     etree.SubElement(transition, "source", ref=f"id1")
     etree.SubElement(transition, "target", ref=f"id{initial_transition_id}")
     guard = etree.SubElement(transition, "label", kind="guard")
-    guard.text = "dt >= 0 && main <= num_steps - 1"
+    guard.text = "dt >= 0 && main <= num_steps"
     assignment = etree.SubElement(transition, "label", kind="assignment")
     assignment.text = f"dt=0, main = 0"
 
@@ -92,7 +92,7 @@ def generate_agent_template(agent: Car, num_steps, time_step):
         result = {}
         result['id1'] = ids[p1]
         result['id2'] = ids[p2]
-        result['guard_text'] = "dt >= 1 && main <= T - 1"
+        result['guard_text'] = "dt >= 1 && main <= num_steps - 1"
         result['assignment_text'] = f"dt=0, new_xy({p1[0]}, {p1[1]}, {p2[0]}, {p2[1]})"
         return result
     pool = Pool(processes=4)
@@ -133,7 +133,11 @@ def generate_track_template(agents):
     template = etree.Element("template")
     name = etree.SubElement(template, "name")
     name.text = f"Track"
-
+    initial = etree.Element("init", ref=f"id1")
+    location = etree.SubElement(template, "location", id=f"id1")
+    name = etree.SubElement(location, "name")
+    name.text = "Sink"
+    template.append(initial)
     return template
 
 def generate_uppaal_xml(agents, num_steps, time_step, track):
@@ -165,7 +169,7 @@ if __name__ == "__main__":
             'level': 1
         },
         'mode_manager_params': {
-            'h_prec' : 0.1,
+            'h_prec' : math.pi/4,
             'v_prec' : 0.5
         },
         'control_type': ControlType.STEER_ACCELERATE
