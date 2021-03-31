@@ -244,6 +244,10 @@ if __name__ == "__main__":
             'plan_time_precision': .1,
             'level': 1
         },
+        'mode_manager_params': {
+            'h_prec' : 0.01,
+            'v_prec' : 0.5
+        },
         'control_type': ControlType.STEER_ACCELERATE
     }
     all_cars = []

@@ -19,7 +19,7 @@ class CarState:
         self.heading = heading
         self.old_heading = self.heading
         self.side_slip = 0
-        self.tpx = track.find_pos_index(0, x, y)
+        if track: self.tpx = track.find_pos_index(0, x, y)
         self.mode = None
         self.last_mode = None
         self.l = length
@@ -106,11 +106,18 @@ class FourModeCarState(CarState):
 
 
 class InputModeCarState(CarState):
-    def __init__(self, x, y, dx, dy, d2x, d2y, heading,  track, length, width, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle):
+    def __init__(self, x, y, dx, dy, d2x, d2y, heading,  track, length, width, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle, manager_params=None):
         super().__init__(x, y, dx, dy, d2x, d2y, heading, length, width, track)
-        self.mode_manager = InputModes(max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle)
+        if manager_params:
+            self.mode_manager = InputModes(max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle, manager_params['v_prec'], manager_params['h_prec'])
+        else:
+            self.mode_manager = InputModes(max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle)
         self.mode = self.mode_manager.mode_from_velocity_heading(self.v, heading)
         self.last_mode = self.mode
+        self.v = self.mode[0]
+        self.old_v = self.v
+        self.heading = self.mode[1]
+        self.old_heading = self.heading
 
 
     def update(self, mode, lr, lf, time_step, track, **kwargs):

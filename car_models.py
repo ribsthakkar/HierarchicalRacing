@@ -56,9 +56,13 @@ class FourModeCar(Car):
 class DiscreteInputModeCar(Car):
     def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, controller_parameters):
         super().__init__(car_profile, track, controller_parameters)
+        if 'mode_manager_params' in controller_parameters:
+            manager_params = controller_parameters['mode_manager_params']
+        else:
+            manager_params = None
         self.state = InputModeCarState(x, y, dx, dy, d2x, d2y, heading, track, self.length, self.width,
                                        self.max_acceleration, self.max_braking, self.max_gs, self.max_vel,
-                                       self.max_steering_angle)
+                                       self.max_steering_angle, manager_params)
 
     def input_steer_accelerate_command(self, acceleration, steering_angle, mode, time_step):
         cars_ahead = self.track.cars_ahead[self]

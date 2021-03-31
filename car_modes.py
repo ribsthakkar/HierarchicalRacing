@@ -83,6 +83,12 @@ class InputModes:
     def _within_corn_limit(self, mode, v, h, dt):
         return not is_greater_than(self._find_max_cornering_acc(mode, v, h, dt), self.max_corn, rel_tol=0.01)
 
+    def is_transition_feasible(self, vh1, vh2, dt):
+        speeding_up = is_greater_than(vh1[0], vh2[0]) or math.isclose(vh1[0], vh2[0])
+        return ((speeding_up and self._within_acc_limit(vh1, vh2[0], vh2[1], dt))
+                or (not speeding_up and self._within_braking_limit(vh1, vh2[0], vh2[1], dt))) and \
+                self._within_corn_limit(vh1, vh2[0], vh2[1], dt)
+
     def _find_best_collision_avoidance_vh_pair(self, car_state, targetv, targeth, init_v, init_h, other_trajectories, dt):
         mode = car_state.mode
         lb = np.array([0, car_state.mode[1]-TPI])

@@ -52,3 +52,20 @@ basicsports_profile = {
     'max_steering_angle': 40,
     'max_braking': 2*gravitational_acceleration
 }
+
+def example_acc_profile(sp):
+    if 0 <= sp < 10:
+        return 5
+    else:
+        return 1
+
+example_profile = {
+    'max_velocity': 10,
+    'max_acceleration': 1,
+    'acceleration_profile': example_acc_profile,
+    'car_width': .18,
+    'car_length': .4,
+    'max_cornering_gs': 1,
+    'max_steering_angle': 40,
+    'max_braking': .5*gravitational_acceleration
+}
