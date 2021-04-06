@@ -27,7 +27,7 @@ def vh_name(velocity, heading):
 def generate_agent_template(agent: Car, id, num_steps, time_step):
     template = etree.Element("template")
     name = etree.SubElement(template, "name")
-    name.text = f"Agent"
+    name.text = f"Agent{id}"
     parameters = etree.SubElement(template, "parameter")
     parameters.text = "int id, double x, double y, double v, double h"
     declaration = etree.SubElement(template, "declaration")
@@ -357,7 +357,7 @@ def generate_uppaal_xml(agents, num_steps, time_step, track):
     agent_names = []
     for idx, agent in enumerate(agents):
         root.append(generate_agent_template(agent, idx, num_steps, time_step))
-        decl = f"a{idx} = Agent({idx}, {agent.state.x}, {agent.state.y}, {agent.state.v}, {agent.state.heading});"
+        decl = f"a{idx} = Agent{idx}({idx}, {agent.state.x}, {agent.state.y}, {agent.state.v}, {agent.state.heading});"
         agent_decls.append(decl)
         agent_names.append(f"a{idx}")
 
@@ -476,5 +476,6 @@ if __name__ == "__main__":
     track_width = 10
     track = Track(main_track_x, main_track_y, track_width)
     car = DiscreteInputModeCar(67.0, 343.0, -.2, -.1, -.2, -.1, math.pi * (5/4), example_profile, track, control_params_1)
-    generate_uppaal_xml([car], 100, 0.5, track)
+    car2 = DiscreteInputModeCar(67.0, 343.0, -.2, -.1, -.2, -.1, math.pi * (5/4), example_profile, track, control_params_1)
+    generate_uppaal_xml([car, car2], 100, 0.5, track)
     pass
