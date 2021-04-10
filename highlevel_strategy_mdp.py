@@ -1,97 +1,87 @@
+import math
 from typing import Dict, List, TextIO
-from example import map_sequences_to_probabilities, get_sorted_weather_sequences
-from weather_planning_with_storm import generate_weather_sequences
-from constants import *
 
-def _write_with_newline_and_sc(line:str, output: TextIO, include_semicolon=True):
-    output.write(line + ';\n' if include_semicolon else line + '\n')
+from util import _write_with_newline_and_sc
 
-def get_valid_directions(x_size, y_size, x, y):
-    valid_directions = {"n", "ne", "e", "se", "s", "sw", "w", "nw"}
-    if x == 1:
-        valid_directions.discard("sw")
-        valid_directions.discard("w")
-        valid_directions.discard("nw")
-    if y == 1:
-        valid_directions.discard("s")
-        valid_directions.discard("se")
-        valid_directions.discard("sw")
-    if x == x_size:
-        valid_directions.discard("ne")
-        valid_directions.discard("se")
-        valid_directions.discard("e")
-    if y == y_size:
-        valid_directions.discard("n")
-        valid_directions.discard("ne")
-        valid_directions.discard("nw")
-    return list(valid_directions)
-
-def get_weather_affected_directions(agent_dir, x_size, y_size, x, y):
-    weather_affected_directions = {"n":{"e", "w", "nw", "ne"}, "ne":{"n", "e"}, "e":{"n", "s", "ne", "se"},
-                        "se":{"s", "e"}, "s":{"e", "w", "sw", "se"}, "sw":{"s", "w"}, "w":{"n", "s", "nw", "sw"},
-                        "nw":{"n", "w"}}
-
-    weather_directions = weather_affected_directions[agent_dir]
-    if y == 1 and agent_dir == 'e':
-        weather_directions.discard('s')
-        weather_directions.discard('se')
-    if y == 1 and agent_dir == 'w':
-        weather_directions.discard('s')
-        weather_directions.discard('sw')
-    if x == 1 and agent_dir == 'n':
-        weather_directions.discard('w')
-        weather_directions.discard('nw')
-    if x == 1 and agent_dir == 's':
-        weather_directions.discard('w')
-        weather_directions.discard('sw')
-
-    if y == y_size and agent_dir == 'e':
-        weather_directions.discard('n')
-        weather_directions.discard('ne')
-    if y == y_size and agent_dir == 'w':
-        weather_directions.discard('n')
-        weather_directions.discard('nw')
-    if x == x_size and agent_dir == 'n':
-        weather_directions.discard('e')
-        weather_directions.discard('ne')
-    if x == x_size and agent_dir == 's':
-        weather_directions.discard('e')
-        weather_directions.discard('se')
-    return weather_directions
-
-def get_target_coords(dir, x, y):
-    target_x = x
-    target_y = y
-    if 's' in dir:
-        target_y -= 1
-    elif 'n' in dir:
-        target_y += 1
-    if 'w' in dir:
-        target_x -= 1
-    elif 'e' in dir:
-        target_x += 1
-
-    return target_x, target_y
-
-class TrackStraight:
-    def __init__(self, length):
+class CarDef:
+    def __init__(self, max_velocity, min_gs, max_gs, max_braking, max_acceleration, init_tire, init_time, init_line, init_velocity, init_position):
+        self.max_v = max_velocity
+        self.max_braking = -abs(max_braking)
+        self.max_acceleration = max_acceleration
+        self.min_gs = min_gs
+        self.max_gs = max_gs
+        self.init_tire = init_tire
+        self.init_time = init_time
+        self.init_line = init_line
+        self.init_velocity = init_velocity
+        self.init_position = init_position
         pass
+
+class TrackComponent:
+    def __init__(self, length):
+        self.length = length
+
+    def is_v_feasible(self, velocity, tire_wear, min_cornering_gs, max_cornering_gs):
+        raise NotImplementedError("Must be implemented by child classes")
+
+    def tire_wear(self, velocity):
+        raise NotImplementedError("Must be implemented by child classes")
+
+
+class TrackStraight(TrackComponent):
+    def __init__(self, length):
+        super().__init__(length)
+
+    def is_v_feasible(self, velocity, tire_wear, min_cornering_gs, max_cornering_gs):
+        return True
+
+    def tire_wear(self, velocity):
+        if velocity == 0: return 0
+        return 1
 
 class TrackCorner:
-    class Entry:
-        pass
-    class Mid:
-        pass
-    class Exit:
-        pass
-    def __init__(self, radius, ):
-        pass
+    class Entry(TrackComponent):
+        def __init__(self, length, turn_radius):
+            super().__init__(length)
+            self.tr = turn_radius
+
+        def is_v_feasible(self, velocity, tire_wear, min_cornering_gs, max_cornering_gs):
+            gs = (velocity**2)/self.tr
+            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/1000)
+            return gs <= max_cornering_gs-g_diff
+
+        def tire_wear(self, velocity):
+            gs = (velocity**2)/self.tr
+            return int(math.ceil(gs) * self.length/velocity)
+
+
+    class Mid(TrackComponent):
+        def __init__(self, length, turn_radius):
+            super().__init__(length)
+            self.tr = turn_radius
+
+        def is_v_feasible(self, velocity, tire_wear, min_cornering_gs, max_cornering_gs):
+            gs = (velocity**2)/self.tr
+            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/1000)
+            return gs <= max_cornering_gs-g_diff
+
+        def tire_wear(self, velocity):
+            gs = (velocity**2)/self.tr
+            return int(math.ceil(gs) * self.length/velocity)
+
+
+    def __init__(self, turn_radius, entry_length, mid_length, exit_length):
+        self.entry = self.Entry(entry_length, turn_radius)
+        self.mid = self.Mid(mid_length, turn_radius)
+        self.exit = TrackStraight(exit_length)
+
 
 class TrackDef:
-    def __init__(self,  track_landmarks, num_laps = 1, num_lines=3):
+    def __init__(self, track_landmarks, width, num_laps = 1, num_lines=3):
         self.landmarks = self._process_landmarks(track_landmarks)
         self.track_points= len(self.landmarks)
-        self.tls = num_lines
+        self.track_lines = num_lines
+        self.width = width
         pass
 
     def _process_landmarks(self, input_landmarks):
@@ -106,33 +96,84 @@ class TrackDef:
         return output
 
 
-    def _ts2te(self, position, line, tp_update_string, car_def, straight, entry):
+    def _ts2te(self, line, acc, tp_update_string, car_def, straight, entry):
         output = []
-        for ta in range(0, 100, 10):
-            for tl in range(self.tls):
-                if tl == line: continue
-                guard = f"track_pos={position} & track_line={tl} & {ta}<=tire_age & tire_age<{ta+10}"
-                expected_time = straight.length/2
+        tire_wear_step = 100
+        for tl in range(self.track_lines):
+            for ta in range(0, 1000, tire_wear_step):
+                for v in range(0, car_def.max_v, 10):
+                    updates = []
+                    guard = f"track_line={tl} & {ta}<=tire_age & tire_age<{ta+tire_wear_step} & {v}<=velocity & velocity<{v+10}"
+                    avg_v = v+10/2
+                    avg_ta = ta+tire_wear_step/2
+                    avg_dist = math.sqrt((straight.length/2)**2 + (abs(tl - line)*(self.width)/(self.track_lines+1))**2)
+                    avg_final_v = (math.sqrt(max(0, avg_v**2 + 2*acc*avg_dist)))
+                    max_fv = min(car_def.max_v, int(avg_final_v + 4))
+                    min_fv = max(1, int(avg_final_v - 4))
+                    feasible_v = []
+                    for fv in range(min_fv, max_fv+1):
+                        if entry.is_v_feasible(fv, avg_ta, car_def.min_gs, car_def.max_gs):
+                            feasible_v.append(fv)
+                    for fv in feasible_v:
+                        est_dt = int((2 * avg_dist / (avg_v + fv)))
+                        est_dta = entry.tire_wear(fv)
+                        prob = f'1/{len(feasible_v)}'
+                        changes = f"{tp_update_string} & (velocity'={fv}) & (track_line'={line}) & (tire_age'=tire_age+{est_dta}) & (t'=t+{est_dt})"
+                        updates.append((prob, changes))
 
-    def generate_guards_and_updates(self, position, line, tp_update_string, car_definition):
-        tail = self.landmarks[position % self.tls]
-        head = self.landmarks[(position+1) % self.tls]
-        if type(tail) == TrackStraight and type(head) == TrackCorner.Entry:
-            return self._ts2te(position, line, tp_update_string, car_definition, tail, head)
-            pass
-        elif type(tail) == TrackCorner.Entry and type(head) == TrackCorner.Mid:
-            pass
-        elif type(tail) == TrackCorner.Mid and type(head) == TrackCorner.Exit:
-            pass
-        elif type(tail) == TrackCorner.Exit and type(head) == TrackStraight:
-            pass
-        elif type(tail) == TrackCorner.Exit and type(head) == TrackCorner.Entry:
-            pass
-        elif type(tail) == TrackStraight and type(head) == TrackStraight:
-            pass
-        else:
-            print("Invalid Connection")
-            exit(1)
+                    if len(updates):
+                        output.append((guard, updates))
+                if acc <= 0:
+                    updates = []
+                    guard = f"track_line={tl} & {ta}<=tire_age & tire_age<{ta + 10} & velocity={car_def.max_v}"
+                    avg_v = car_def.max_v
+                    avg_ta = ta + tire_wear_step / 2
+                    avg_dist = math.sqrt(
+                        (straight.length / 2) ** 2 + (abs(tl - line) * (self.width) / (self.track_lines + 1)) ** 2)
+                    avg_final_v = (math.sqrt(avg_v ** 2 + 2 * acc * avg_dist))
+                    max_fv = min(car_def.max_v, int(avg_final_v + 4))
+                    min_fv = max(0, int(avg_final_v - 4))
+                    feasible_v = []
+                    for fv in range(min_fv, max_fv + 1):
+                        if entry.is_v_feasible(fv, avg_ta, car_def.min_gs, car_def.max_gs):
+                            feasible_v.append(fv)
+                    for fv in feasible_v:
+                        est_dt = (2 * avg_dist / (avg_v + fv))
+                        est_dta = entry.tire_wear(fv)
+                        prob = f'1/{len(feasible_v)}'
+                        changes = f"{tp_update_string} & (velocity'={fv}) & (track_line'={line}) & (tire_age'=tire_age+{est_dta}) & (t'=t+{est_dt})"
+                        updates.append((prob, changes))
+                    if len(updates):
+                        output.append((guard, updates))
+            updates = []
+            guard = f"tire_age >=1000"
+            est_dt = int(straight.length / 1)
+            prob = '1'
+            changes = f"{tp_update_string} & (velocity'={1}) & (track_line'={line}) & (tire_age'=tire_age) & (t'=t+{est_dt})"
+            updates.append((prob, changes))
+            output.append((guard, updates))
+        return output
+
+    def generate_guards_and_updates(self, position, line, acc, tp_update_string, car_definition):
+        tail = self.landmarks[position % self.track_points]
+        head = self.landmarks[(position+1) % self.track_points]
+        return self._ts2te(line, acc, tp_update_string, car_definition, tail, head)
+        # if type(tail) == TrackStraight and type(head) == TrackCorner.Entry:
+        #     return self._ts2te(line, acc, tp_update_string, car_definition, tail, head)
+        #     pass
+        # elif type(tail) == TrackCorner.Entry and type(head) == TrackCorner.Mid:
+        #     pass
+        # elif type(tail) == TrackCorner.Mid and type(head) == TrackCorner.Exit:
+        #     pass
+        # elif type(tail) == TrackCorner.Exit and type(head) == TrackStraight:
+        #     pass
+        # elif type(tail) == TrackCorner.Exit and type(head) == TrackCorner.Entry:
+        #     pass
+        # elif type(tail) == TrackStraight and type(head) == TrackStraight:
+        #     pass
+        # else:
+        #     print("Invalid Connection")
+        #     exit(1)
 
 def generate_racecar_module(output_file, id, max_time, track_definition, car_definition):
     with open(output_file, "w+") as output:
@@ -140,8 +181,8 @@ def generate_racecar_module(output_file, id, max_time, track_definition, car_def
 
         tps = track_definition.track_points
         tls = track_definition.track_lines
-        max_v = car_definition.max_velocity
-        init_tire = car_definition.tire_age
+        max_v = car_definition.max_v
+        init_tire = car_definition.init_tire
         init_time = car_definition.init_time
         init_line = car_definition.init_line
         init_v = car_definition.init_velocity
@@ -150,17 +191,19 @@ def generate_racecar_module(output_file, id, max_time, track_definition, car_def
         _write_with_newline_and_sc(f't : [0..{max_time}] init {init_time}', output)
         _write_with_newline_and_sc(f'track_pos : [0..{tps}] init {init_pos}', output)
         _write_with_newline_and_sc(f'track_line : [0..{tls}] init {init_line}', output)
-        _write_with_newline_and_sc(f'tire_age : [0..100] init {init_tire}', output)
-        _write_with_newline_and_sc(f'velocity : [0..{max_v}] init {init_v}', output)
+        _write_with_newline_and_sc(f'tire_age : [0..1000] init {init_tire}', output)
+        _write_with_newline_and_sc(f'velocity : [1..{max_v}] init {init_v}', output)
         _write_with_newline_and_sc("", output, False)
 
-        tp_update_string = "(track_pos=track_pos'+1)"
+        tp_update_string = "(track_pos'=track_pos+1)"
         for track_pos in range(init_pos, tps):
             for line in range(0, tls):
-                action = f"step{track_pos}_{line}"
-                for tire_age_guard, updates in track_definition.generate_guards_and_updates(track_pos, line, tp_update_string, car_definition):
-                    guard = f"track_pos={track_pos} & {tire_age_guard}"
-                    _write_with_newline_and_sc(f"{action} {guard} -> {'+'.join(map(lambda prob, update: f'{prob}:{update}', updates))}", output)
+                for acc in range(car_definition.max_braking, car_definition.max_acceleration):
+                    action = f"[step{track_pos}_{line}_{acc}]"
+                    for ta_v_guard, updates in track_definition.generate_guards_and_updates(track_pos, line, acc, tp_update_string, car_definition):
+                        if len(updates) == 0: continue
+                        guard = f"track_pos={track_pos} & {ta_v_guard}"
+                        _write_with_newline_and_sc(f"{action} {guard} -> {'+'.join(map(lambda pair: f'{pair[0]}:{pair[1]}', updates))}", output)
 
 
 
@@ -168,9 +211,7 @@ def generate_racecar_module(output_file, id, max_time, track_definition, car_def
         _write_with_newline_and_sc("", output, False)
 
 if __name__ == "__main__":
-
-    all_possible_sequences = get_sorted_weather_sequences(weather_horizon)
-    weather_distributions = map_sequences_to_probabilities(all_possible_sequences)
-    weather_sequences = generate_weather_sequences(x_states, y_states, time_horizon, weather_horizon)
-    # print(weather_sequences)
-    generate_prism_robot_module_deterministic(x_states, y_states, x_init, y_init, x_goal, y_goal, weather_sequences, weather_distributions, 'result.txt', time_horizon, weather_horizon)
+    components = [TrackStraight(500), TrackCorner(250, 390, 390, 226), TrackCorner(250, 390, 390, 500), TrackStraight(500), TrackCorner(250,390, 390,226), TrackCorner(250, 390, 390, 500)]
+    track_def = TrackDef(components, 20)
+    car_def = CarDef(100, 9.8, 3*9.8, 10, 10, 0, 0, 1, 10, 0)
+    generate_racecar_module('result.txt', 1, 1000, track_def, car_def)
