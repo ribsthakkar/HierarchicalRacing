@@ -4,10 +4,11 @@ from typing import Dict, List, TextIO
 
 from util import _write_with_newline_and_sc, neg_to_str
 import stormpy
-
+MAX_TIRE_AGE = 100
 class CarDef:
-    def __init__(self, max_velocity, min_gs, max_gs, max_braking, max_acceleration, init_tire, init_time, init_line, init_velocity, init_position):
+    def __init__(self, max_velocity, velocity_step, min_gs, max_gs, max_braking, max_acceleration, init_tire, init_time, init_line, init_velocity, init_position):
         self.max_v = max_velocity
+        self.velocity_step = velocity_step
         self.max_braking = -abs(max_braking)
         self.max_acceleration = max_acceleration
         self.min_gs = min_gs
@@ -49,7 +50,7 @@ class TrackCorner:
 
         def is_v_feasible(self, velocity, tire_wear, min_cornering_gs, max_cornering_gs):
             gs = (velocity**2)/self.tr
-            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/1000)
+            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/MAX_TIRE_AGE)
             return gs <= max_cornering_gs-g_diff
 
         def tire_wear(self, velocity):
@@ -64,12 +65,12 @@ class TrackCorner:
 
         def is_v_feasible(self, velocity, tire_wear, min_cornering_gs, max_cornering_gs):
             gs = (velocity**2)/self.tr
-            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/1000)
+            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/MAX_TIRE_AGE)
             return gs <= max_cornering_gs-g_diff
 
         def tire_wear(self, velocity):
             gs = (velocity**2)/self.tr
-            return int((math.ceil(gs) * self.length/velocity)/10)
+            return int((math.ceil(gs) * self.length/velocity)/100)
 
 
     def __init__(self, turn_radius, entry_length, mid_length, exit_length):
@@ -105,13 +106,14 @@ class TrackDef:
         lap_change_update = "" if not lap_change else "& (lap'=lap+1)"
         # lap_change_update = ""
         output = []
-        tire_wear_step = 100
+        tire_wear_step = 10
+        velocity_step = car_def.velocity_step
         for tl in range(self.track_lines):
-            for ta in range(0, 1000, tire_wear_step):
-                for v in range(0, car_def.max_v, 10):
+            for ta in range(0, MAX_TIRE_AGE, tire_wear_step):
+                for v in range(0, car_def.max_v, velocity_step):
                     updates = []
-                    guard = f"track_line={tl} & {ta}<=tire_age & tire_age<{ta+tire_wear_step} & {v}<=velocity & velocity<{v+10}"
-                    avg_v = v+10/2
+                    guard = f"track_line={tl} & {ta}<=tire_age & tire_age<{ta+tire_wear_step} & {v}<=velocity & velocity<{v+velocity_step}"
+                    avg_v = v+velocity_step/2
                     avg_ta = ta+tire_wear_step/2
                     avg_dist = math.sqrt((straight.length/2)**2 + (abs(tl - line)*(self.width)/(self.track_lines+1))**2)
                     avg_final_v = (math.sqrt(max(0, avg_v**2 + 2*acc*avg_dist)))
@@ -132,7 +134,7 @@ class TrackDef:
                         output.append((guard, updates))
                 if acc <= 0:
                     updates = []
-                    guard = f"track_line={tl} & {ta}<=tire_age & tire_age<{ta + 10} & velocity={car_def.max_v}"
+                    guard = f"track_line={tl} & {ta}<=tire_age & tire_age<{ta + tire_wear_step} & velocity={car_def.max_v}"
                     avg_v = car_def.max_v
                     avg_ta = ta + tire_wear_step / 2
                     avg_dist = math.sqrt(
@@ -199,7 +201,7 @@ def generate_racecar_module(output_file, id, max_time, laps, track_definition, c
         _write_with_newline_and_sc(f'lap : [0..{laps}] init 0', output)
         _write_with_newline_and_sc(f'track_pos : [0..{tps-1}] init {init_pos}', output)
         _write_with_newline_and_sc(f'track_line : [0..{tls-1}] init {init_line}', output)
-        _write_with_newline_and_sc(f'tire_age : [0..1000] init {init_tire}', output)
+        _write_with_newline_and_sc(f'tire_age : [0..{MAX_TIRE_AGE}] init {init_tire}', output)
         _write_with_newline_and_sc(f'velocity : [1..{max_v}] init {init_v}', output)
         _write_with_newline_and_sc("", output, False)
 
@@ -225,22 +227,23 @@ def generate_racecar_module(output_file, id, max_time, laps, track_definition, c
         _write_with_newline_and_sc(f'label \"goal\" = lap={laps}', output)
 
         _write_with_newline_and_sc("rewards \"total_time\"", output, False)
-        _write_with_newline_and_sc(f"true: t", output)
+        _write_with_newline_and_sc(f"lap<{laps}: t", output)
+        _write_with_newline_and_sc(f"lap={laps}: t", output)
         _write_with_newline_and_sc("endrewards", output, False)
 
 if __name__ == "__main__":
-    components = [TrackStraight(500), TrackCorner(250, 390, 390, 226), TrackCorner(250, 390, 390, 500), TrackStraight(500), TrackCorner(250,390, 390,226), TrackCorner(250, 390, 390, 500)]
+    components = [TrackStraight(50), TrackCorner(25, 39, 39, 23), TrackCorner(25, 39, 39, 50), TrackStraight(50), TrackCorner(25, 39, 39,23), TrackCorner(25, 39, 39, 50)]
     # components = [TrackStraight(500), TrackCorner(250, 390, 390, 226)]
     pit_exit_p = 1
-    pit_exit_v = 30
+    pit_exit_v = 3
     pit_exit_line = 0
-    pit_time = 60
-    track_def = TrackDef(components, width=20, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
-    car_def = CarDef(max_velocity=10, min_gs=0.3*9.8, max_gs=1*9.8, max_braking=5, max_acceleration=5,
+    pit_time = 20
+    track_def = TrackDef(components, width=5, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
+    car_def = CarDef(max_velocity=10, velocity_step=1, min_gs=0.3*9.8, max_gs=1*9.8, max_braking=5, max_acceleration=5,
                      init_time=0, init_tire=0, init_line=1, init_velocity=2, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
-    generate_racecar_module('result2.txt', id=1, max_time=1000, laps=1, track_definition=track_def, car_definition=car_def)
+    generate_racecar_module('result2.txt', id=1, max_time=100, laps=1, track_definition=track_def, car_definition=car_def)
     formula_str = "R{\"total_time\"}min=? [F \"goal\"]"
     print("Generated Prism Program")
     print(datetime.now())
@@ -254,6 +257,7 @@ if __name__ == "__main__":
     print(datetime.now())
     print("building model...")
     model = stormpy.build_model(program, formulas)
+    print(model)
     initial_state = model.initial_states[0]
     print("built model")
     print(datetime.now())
