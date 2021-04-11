@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 from typing import Dict, List, TextIO
 
 from util import _write_with_newline_and_sc, neg_to_str
@@ -229,26 +230,34 @@ def generate_racecar_module(output_file, id, max_time, laps, track_definition, c
 
 if __name__ == "__main__":
     components = [TrackStraight(500), TrackCorner(250, 390, 390, 226), TrackCorner(250, 390, 390, 500), TrackStraight(500), TrackCorner(250,390, 390,226), TrackCorner(250, 390, 390, 500)]
-    components = [TrackStraight(500), TrackCorner(250, 390, 390, 226)]
+    # components = [TrackStraight(500), TrackCorner(250, 390, 390, 226)]
     pit_exit_p = 1
     pit_exit_v = 30
     pit_exit_line = 0
     pit_time = 30
     track_def = TrackDef(components, 20, pit_exit_p, pit_exit_v, pit_exit_line, pit_time)
     car_def = CarDef(100, 9.8, 3*9.8, 10, 10, 0, 0, 1, 10, 0)
+    print(datetime.now())
+    print("Generating Prism Program...")
     generate_racecar_module('result2.txt', id=1, max_time=1000, laps=1, track_definition=track_def, car_definition=car_def)
     formula_str = "R{\"total_time\"}min=? [F \"goal\"]"
-
-    print("parsing program...")
+    print("Generated Prism Program")
+    print(datetime.now())
+    print("parsing Prism program with Storm...")
     program = stormpy.parse_prism_program('result2.txt')
     print("parsed program")
+    print(datetime.now())
     print("parsing formulas...")
     formulas = stormpy.parse_properties_for_prism_program(formula_str, program)
     print("parsed formulas")
+    print(datetime.now())
     print("building model...")
     model = stormpy.build_model(program, formulas)
+    initial_state = model.initial_states[0]
     print("built model")
+    print(datetime.now())
     print("Checking model...")
     result = stormpy.model_checking(model, formulas[0], extract_scheduler=False)
     print("Finished checking")
-    print(result)
+    print(datetime.now())
+    print(result.at(initial_state))
