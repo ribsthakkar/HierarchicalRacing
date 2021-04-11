@@ -79,14 +79,14 @@ class TrackCorner:
 
 
 class TrackDef:
-    def __init__(self, track_landmarks, width, pit_exit_p, pit_exit_v, pit_exit_l, pit_time, num_lines=3):
+    def __init__(self, track_landmarks, width, pit_exit_position, pit_exit_velocity, pit_exit_line, pit_time, num_lines=3):
         self.landmarks = self._process_landmarks(track_landmarks)
         self.track_points= len(self.landmarks)
         self.track_lines = num_lines
         self.width = width
-        self.pit_exit_p = pit_exit_p
-        self.pit_exit_l = pit_exit_l
-        self.pit_exit_v = pit_exit_v
+        self.pit_exit_p = pit_exit_position
+        self.pit_exit_l = pit_exit_line
+        self.pit_exit_v = pit_exit_velocity
         self.pit_time = pit_time
 
     def _process_landmarks(self, input_landmarks):
@@ -137,9 +137,9 @@ class TrackDef:
                     avg_ta = ta + tire_wear_step / 2
                     avg_dist = math.sqrt(
                         (straight.length / 2) ** 2 + (abs(tl - line) * (self.width) / (self.track_lines + 1)) ** 2)
-                    avg_final_v = (math.sqrt(avg_v ** 2 + 2 * acc * avg_dist))
+                    avg_final_v = (math.sqrt(max(0, avg_v**2 + 2*acc*avg_dist)))
                     max_fv = min(car_def.max_v, int(avg_final_v + 4))
-                    min_fv = max(0, int(avg_final_v - 4))
+                    min_fv = max(1, int(avg_final_v - 4))
                     feasible_v = []
                     for fv in range(min_fv, max_fv + 1):
                         if entry.is_v_feasible(fv, avg_ta, car_def.min_gs, car_def.max_gs):
@@ -234,9 +234,10 @@ if __name__ == "__main__":
     pit_exit_p = 1
     pit_exit_v = 30
     pit_exit_line = 0
-    pit_time = 30
-    track_def = TrackDef(components, 20, pit_exit_p, pit_exit_v, pit_exit_line, pit_time)
-    car_def = CarDef(100, 9.8, 3*9.8, 10, 10, 0, 0, 1, 10, 0)
+    pit_time = 60
+    track_def = TrackDef(components, width=20, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
+    car_def = CarDef(max_velocity=10, min_gs=0.3*9.8, max_gs=1*9.8, max_braking=5, max_acceleration=5,
+                     init_time=0, init_tire=0, init_line=1, init_velocity=2, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
     generate_racecar_module('result2.txt', id=1, max_time=1000, laps=1, track_definition=track_def, car_definition=car_def)
