@@ -97,3 +97,8 @@ def log_leq_barrier_function_value(x, b, rel_tol=1e-5, base=math.e):
 
 def _write_with_newline_and_sc(line:str, output, include_semicolon=True):
     output.write(line + ';\n' if include_semicolon else line + '\n')
+
+def neg_to_str(num):
+    if num < 0:
+        return f'm{abs(num)}'
+    return str(num)

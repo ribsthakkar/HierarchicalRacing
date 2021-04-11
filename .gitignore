@@ -3,5 +3,5 @@ procedural-tracks/
 .idea/
 *.png
 __pycache__/
-result.txt
+result*.txt
 output_file.xml
