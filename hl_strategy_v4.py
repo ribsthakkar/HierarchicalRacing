@@ -18,7 +18,7 @@ def calc_min_time(u, v, s, a_min, a_max, v_max):
     constraints = []
 
     def opt(x):
-        return x[2]
+        return x[3]
 
     def time_variables_constraint(x):
         return x[1] - x[0]
@@ -30,16 +30,29 @@ def calc_min_time(u, v, s, a_min, a_max, v_max):
     nlc = NonlinearConstraint(time_variables_constraint2, 0, np.inf)
     constraints.append(nlc)
 
+    def time_variables_constraint3(x):
+        return x[3] - x[2]
+    nlc = NonlinearConstraint(time_variables_constraint3, 0, np.inf)
+    constraints.append(nlc)
+
     def distance_constraint(x):
         iv = u + a_max*x[0]
-        dist = (u+iv)*x[0]/2
+        dist = u*x[0] + a_max*x[0]
         dist += (x[1]-x[0])*iv
-        t2 = (v-iv)/-abs(a_min)
-        dist += (iv + v)*t2
-        t3 = x[2]-x[1]
-        dist += (v)*t3
+        fv = iv + -abs(a_min)*(x[2]-x[1])
+        dist += (iv + fv)*(x[2]-x[1])/2
+        dist += x[3]*fv
         return dist
     nlc = NonlinearConstraint(distance_constraint, s, s)
+    constraints.append(nlc)
+
+    def final_v_constraint(x):
+        iv = u + a_max * x[0]
+        dist = u * x[0] + a_max * x[0]
+        dist += (x[1] - x[0]) * iv
+        fv = iv + -abs(a_min) * (x[2] - x[1])
+        return fv
+    nlc = NonlinearConstraint(final_v_constraint, v, v)
     constraints.append(nlc)
 
     def max_vel_constraint(x):
@@ -48,15 +61,18 @@ def calc_min_time(u, v, s, a_min, a_max, v_max):
     nlc = NonlinearConstraint(max_vel_constraint, 0, v_max)
     constraints.append(nlc)
 
-    lb = [0, 0, 0]
-    ub = [100, 100, 100]
+    lb = [0, 0, 0, 0]
+    ub = [100, 100, 100, 100]
     bounds = Bounds(lb, ub)
-    x0 = [0,0.1,0.1]
+    x0 = [0.1,0.2,0.3,0.4]
     result = minimize(opt, x0, constraints=constraints, bounds=bounds)
-    if (is_greater_than(max_vel_constraint(result.x), v_max, abs_tol=1e-4) or not math.isclose(distance_constraint(result.x), s, abs_tol=1e-4) or result.x[0] <= -1e-5 or result.x[1] <= -1e-5):
+    if (is_greater_than(max_vel_constraint(result.x), v_max, abs_tol=1e-4) or not math.isclose(distance_constraint(result.x), s, abs_tol=1e-4)
+            or not math.isclose(final_v_constraint(result.x), v, abs_tol=1e-4)
+            or result.x[0] <= -1e-5 or result.x[1] <= -1e-5):
         # print(max_vel_constraint(result.x), distance_constraint(result.x), s, u, v, result.x)
         # print()
         return None
+    # print("u=",u, "v=",v, "s=", s, result.x[3], result.x, distance_constraint(result.x))
     return result.fun
 
 
@@ -170,12 +186,12 @@ class TimePrecision(Enum):
     Seconds = 1
 
 
-def generate_modules(output_file, total_seconds, laps, track_definition, car_definitions, time_precision, crash_tolerance=1, is_game=False):
+def generate_modules(output_file, total_seconds, laps, track_definition, car_definitions, time_precision, crash_tolerance=1, is_game=False, game_type='smg'):
     with open(output_file, "w+") as output:
         if not is_game:
             _write_with_newline_and_sc("mdp\n", output, False)
         else:
-            _write_with_newline_and_sc("smg\n", output, False)
+            _write_with_newline_and_sc(f"{game_type}\n", output, False)
 
         tps = track_definition.track_points
         tls = track_definition.num_lanes
@@ -184,6 +200,9 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
         pit_out_l = track_definition.pit_exit_l
         max_time = total_seconds * time_precision.value
         pit_time = track_definition.pit_time * time_precision.value
+        _write_with_newline_and_sc(f"const int max_time", output)
+        _write_with_newline_and_sc(f"const int num_laps", output)
+        player_action_str = []
         for idx, car_definition in enumerate(car_definitions):
             max_v = car_definition.max_v
             init_tire = car_definition.init_tire
@@ -199,7 +218,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                 ub = min(max_v+1, velocity+velocity_step)
                 for lane in range(tls):
                     action_set[(velocity, ub, lane)] = f"[step{idx}_b{velocity}_a{ub}_l{lane}]"
-
+            player_action_str.append(list(action_set.values()))
             # Define Track Section Formulas
             for i in range(tps):
                 for action in action_set:
@@ -224,18 +243,18 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             # Position/Lap Module
             _write_with_newline_and_sc(f'module progress{idx}\n', output, False)
             _write_with_newline_and_sc(f'track_pos{idx} : [0..{tps-1}] init {init_pos}', output)
-            _write_with_newline_and_sc(f'lap{idx} : [0..{laps}] init 0', output)
+            _write_with_newline_and_sc(f'lap{idx} : [0..num_laps] init 0', output)
             for action_string in action_set.values():
-                _write_with_newline_and_sc(f"{action_string} track_pos{idx} < {tps-1} & lap{idx} < {laps} ->  1: (track_pos{idx}'=track_pos{idx}+1)", output)
-                _write_with_newline_and_sc(f"{action_string} track_pos{idx} = {tps-1} & lap{idx} < {laps} ->  1: (track_pos{idx}'=0) & (lap{idx}' = lap{idx}+1)", output)
+                _write_with_newline_and_sc(f"{action_string} track_pos{idx} < {tps-1} & lap{idx} < num_laps ->  1: (track_pos{idx}'=track_pos{idx}+1)", output)
+                _write_with_newline_and_sc(f"{action_string} track_pos{idx} = {tps-1} & lap{idx} < num_laps ->  1: (track_pos{idx}'=0) & (lap{idx}' = lap{idx}+1)", output)
             _write_with_newline_and_sc(
-                f"[worn_{idx}] track_pos{idx} < {tps - 1} & lap{idx} < {laps} ->  1: (track_pos{idx}'=track_pos{idx}+1)",
+                f"[worn_{idx}] track_pos{idx} < {tps - 1} & lap{idx} < num_laps ->  1: (track_pos{idx}'=track_pos{idx}+1)",
                 output)
             _write_with_newline_and_sc(
-                f"[worn_{idx}] track_pos{idx} = {tps - 1} & lap{idx} < {laps} ->  1: (track_pos{idx}'=0) & (lap{idx}' = lap{idx}+1)",
+                f"[worn_{idx}] track_pos{idx} = {tps - 1} & lap{idx} < num_laps ->  1: (track_pos{idx}'=0) & (lap{idx}' = lap{idx}+1)",
                 output)
 
-            _write_with_newline_and_sc(f"[pit_{idx}] track_pos{idx} = {tps-1} & lap{idx} < {laps} -> 1: (track_pos{idx}'={pit_out}) & (lap{idx}' = lap{idx}+1)", output)
+            _write_with_newline_and_sc(f"[pit_{idx}] track_pos{idx} = {tps-1} & lap{idx} < num_laps -> 1: (track_pos{idx}'={pit_out}) & (lap{idx}' = lap{idx}+1)", output)
             _write_with_newline_and_sc("endmodule", output, False)
 
             # Tire Age Module
@@ -262,7 +281,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
             # Car Module
             _write_with_newline_and_sc(f'module racecar{idx}\n', output, False)
-            _write_with_newline_and_sc(f't{idx} : [0..{max_time}] init {init_time}', output)
+            _write_with_newline_and_sc(f't{idx} : [0..max_time] init {init_time}', output)
             _write_with_newline_and_sc(f'track_lane{idx} : [0..{max(1, tls-1)}] init {init_line}', output)
             _write_with_newline_and_sc(f'velocity{idx} : [1..{max_v}] init {init_v}', output)
             for cur_v in range(1, car_definition.max_v+math.ceil(velocity_step//2), velocity_step):
@@ -293,7 +312,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         prob_str = f"1/{len(updates)}"
                         for i in range(len(updates)):
                             updates[i] = f"{prob_str}:{updates[i]}"
-                        guard_str = f"{action_allowed_strings[action]} & track_lane{idx}={cur_lane} & t{idx}<{max_time-max_dt} & velocity{idx}>={cur_v} & velocity{idx} < {cur_v + velocity_step} & ({pos_guard_str if not always_allowed else 'true'})"
+                        guard_str = f"turn{idx} & {action_allowed_strings[action]} & track_lane{idx}={cur_lane} & t{idx}<max_time-{max_dt} & velocity{idx}>={cur_v} & velocity{idx} < {cur_v + velocity_step} & ({pos_guard_str if not always_allowed else 'true'})"
                         if len(updates):
                             _write_with_newline_and_sc(f"{action_str} {guard_str} -> {' + '.join(updates)}", output)
             action = f"[worn_{idx}]"
@@ -301,20 +320,20 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             max_dt = 0
             for section_idx, section in enumerate(track_definition.landmarks):
                 t_update_str += f"+({math.ceil(section.length*time_precision.value)}*{active_section_strings[section_idx]})"
-                max_dt = max(max_dt,math.ceil(section.length*time_precision.value))
-            guard = f"tire_age{idx}>={MAX_TIRE_AGE} & t{idx} < {max_time-max_dt}"
+                max_dt = max(max_dt, math.ceil(section.length*time_precision.value))
+            guard = f"turn{idx} & tire_age{idx}>={MAX_TIRE_AGE} & t{idx} < max_time-{max_dt}"
             _write_with_newline_and_sc(f"{action} {guard} -> 1:(velocity{idx}'=1) & (track_lane{idx}'=track_lane{idx}) & ({t_update_str})", output)
             action = f"[pit_{idx}]"
-            guard = f"track_pos{idx}={tps-1} & t{idx}<{max_time-pit_time}"
+            guard = f"turn{idx} & track_pos{idx}={tps-1} & t{idx}<max_time-{pit_time}"
             _write_with_newline_and_sc(
                 f"{action} {guard} -> 1:(velocity{idx}'={min(pit_out_v, max_v)}) & (track_lane{idx}'={pit_out_l}) & (t{idx}'=t{idx}+{pit_time})", output)
             _write_with_newline_and_sc("endmodule", output, False)
 
             _write_with_newline_and_sc("", output, False)
-            _write_with_newline_and_sc(f'label \"goal{idx}\" = (lap{idx}={laps} & track_pos{idx}=0) | (lap{idx}={laps} & track_pos{idx}={track_def.pit_exit_p})', output)
+            _write_with_newline_and_sc(f'label \"goal{idx}\" = (lap{idx}=num_laps & track_pos{idx}=0) | (lap{idx}=num_laps & track_pos{idx}={track_def.pit_exit_p})', output)
 
             _write_with_newline_and_sc(f"rewards \"total_time{idx}\"", output, False)
-            _write_with_newline_and_sc(f"lap{idx}={laps-1} & track_pos{idx}={tps-1}: t{idx}", output)
+            _write_with_newline_and_sc(f"lap{idx}=num_laps-1 & track_pos{idx}={tps-1}: t{idx}", output)
             _write_with_newline_and_sc("endrewards", output, False)
             if is_game:
                 _write_with_newline_and_sc(f"player p{idx}", output, False)
@@ -324,12 +343,24 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
         if len(car_definitions) > 1:
             crash_strings = []
             for pair in itertools.combinations(list(range(len(car_definitions))), 2):
-                crash_strings.append(f"((track_pos{pair[0]} = track_pos{pair[1]}) & (t{pair[0]}-t{pair[1]}<={crash_tolerance*time_precision.value} & t{pair[0]}-t{pair[1]} >=-{crash_tolerance*time_precision.value}))")
-            _write_with_newline_and_sc(f"label crash = {' | '.join(crash_strings)}", output)
+                crash_strings.append(f"((track_lane{pair[0]} = track_lane{pair[1]}) & (t{pair[0]}-t{pair[1]}<={crash_tolerance*time_precision.value} & t{pair[0]}-t{pair[1]} >=-{crash_tolerance*time_precision.value}))")
+            _write_with_newline_and_sc(f"label \"crash\" = {' | '.join(crash_strings)}", output)
 
+        if game_type == 'smg':
+            _write_with_newline_and_sc("module turns", output, False)
+            for i in range(len(car_definitions)):
+                _write_with_newline_and_sc(f"turn{i}: bool init {'true' if i == 0 else 'false'}", output)
+            for i in range(len(car_definitions)):
+                if len(car_definitions) > 1:
+                    for action_str in player_action_str[i]:
+                        _write_with_newline_and_sc(f"{action_str} true -> (turn{i}'=false) & (turn{(i+1)%len(car_definitions)}'=true)", output)
+                else:
+                    for action_str in player_action_str[i]:
+                        _write_with_newline_and_sc(f"{action_str} true -> (turn{i}'=true)", output)
+            _write_with_newline_and_sc("endmodule\n", output, False)
 
 if __name__ == "__main__":
-    LANES = 2
+    LANES = 5
     WIDTH = 5
     LENGTH = 2
     pit_exit_p = 1
@@ -340,16 +371,17 @@ if __name__ == "__main__":
                   TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0), TrackStraight(5.0),
                   TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
                   TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0)]
+    components = [TrackStraight(5), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=8, degrees=360, exit_length=5)]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
                      tire_wear_factor=.7,
                      init_time=0, init_tire=0, init_line=0, init_velocity=1, init_position=0)
-    car_def2 = CarDef(max_velocity=10, velocity_step=2, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=2, max_acceleration=2,
-                     tire_wear_factor=1,
+    car_def2 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
+                     tire_wear_factor=.5,
                      init_time=0, init_tire=0, init_line=1, init_velocity=3, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
-    generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1], time_precision=TimePrecision.Tenths, is_game=True)
+    generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True)
     formula_str = "R{\"total_time\"}min=? [F \"goal\"]"
     print("Generated Prism Program")
     print(datetime.now())
