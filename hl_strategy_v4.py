@@ -414,6 +414,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             for idx in range(len(car_definitions)):
                 _write_with_newline_and_sc(f"rewards \"time_diff{idx}\"", output, False)
                 guard = " & ".join(map(lambda i: f"lap{i}{'=' if i == idx else '<='}num_laps", range(len(car_definitions))))
+                guard += f" & {' & '.join(map(lambda i: f'!reached{i}', range(len(car_definitions))))}"
                 if len(car_definitions) == 2:
                     min_t_str = f"t{1 if idx==0 else 0}"
                 else:
