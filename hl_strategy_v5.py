@@ -204,6 +204,11 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
         _write_with_newline_and_sc(f"const int max_time", output)
         _write_with_newline_and_sc(f"const int num_laps", output)
         player_action_str = []
+        active_section_strings = {}
+        for i in range(tps):
+            active_section_strings[i] = f"section{i}_active"
+            _write_with_newline_and_sc(f"formula {active_section_strings[i]} = track_pos={i} ? 1 : 0", output)
+
         for idx, car_definition in enumerate(car_definitions):
             _write_with_newline_and_sc(f"const int p{idx}_init_ta", output)
             _write_with_newline_and_sc(f"const int p{idx}_init_v", output)
@@ -232,10 +237,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         if not target_section.is_v_feasible(avg_v, action[2], ta, car_definition.min_gs, car_definition.max_gs): break
                     _write_with_newline_and_sc(f"formula sec{i}_b{action[0]}_a{action[1]}_l{action[2]}_c{idx} = tire_age{idx} < {ta} & track_pos={i} & lap<num_laps", output)
 
-            active_section_strings={}
-            for i in range(tps):
-                active_section_strings[i] = f"section{i}_active_c{idx}"
-                _write_with_newline_and_sc(f"formula {active_section_strings[i]} = track_pos={i} ? 1 : 0", output)
+            # active_section_strings={}
+            # for i in range(tps):
+            #     active_section_strings[i] = f"section{i}_active_c{idx}"
+            #     _write_with_newline_and_sc(f"formula {active_section_strings[i]} = track_pos={i} ? 1 : 0", output)
 
             # Define Formulas for allowed actions
             action_allowed_strings = {}
@@ -275,6 +280,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f'module racecar{idx}\n', output, False)
             _write_with_newline_and_sc(f't{idx} : [0..max_time] init {init_time}', output)
             _write_with_newline_and_sc(f'track_lane{idx} : [0..{max(1, tls-1)}] init {init_line}', output)
+            _write_with_newline_and_sc(f'lane_changes{idx} : int init 0', output)
             _write_with_newline_and_sc(f'velocity{idx} : [1..{max_v}] init p{idx}_init_v', output)
             _write_with_newline_and_sc(f'reached{idx} : bool init false', output)
             for cur_lane in range(tls):
@@ -288,6 +294,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         for v in range(action[0], action[1]):
                             t_update_str = f"t{idx}'=t{idx}"
                             pos_guard_str = f"false"
+                            lane_change_count_update = f"lane_changes{idx}'=lane_changes{idx}"
                             for section_idx, section in enumerate(track_definition.landmarks):
                                 dist = math.sqrt(
                                     (section.lengths[cur_lane]) ** 2 + (
@@ -300,12 +307,17 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                                 else: dt = math.ceil(min_time*time_precision.value)
                                 max_dt = max(max_dt, dt)
                                 t_update_str += f"+({dt}*{active_section_strings[section_idx]})"
+                                lane_change_count_update += f"+ ({1 if type(section)==TrackStraight else f'-lane_changes{idx}'} * {active_section_strings[section_idx]})"
                                 pos_guard_str += f" | track_pos={section_idx}"
-                            updates.append(f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})")
+                            update_str = f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})&({lane_change_count_update})" if cur_lane != action[2] else f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})"
+                            updates.append(update_str)
+                        lane_change_guard = "true" if cur_lane == action[2] else f"lane_changes_allowed{idx}"
                         prob_str = f"1/{len(updates)}"
                         for i in range(len(updates)):
                             updates[i] = f"{prob_str}:{updates[i]}"
-                        guard_str = f"p{idx}_go & {action_allowed_strings[action]} & track_lane{idx}={cur_lane} & t{idx}<max_time-{max_dt} & velocity{idx}>={cur_v} & velocity{idx} < {cur_v + velocity_step} & ({pos_guard_str if not always_allowed else 'true'})"
+                        guard_str = f"p{idx}_go & {action_allowed_strings[action]} & track_lane{idx}={cur_lane} & t{idx}<max_time-{max_dt} " \
+                                    f"& velocity{idx}>={cur_v} & velocity{idx} < {cur_v + velocity_step} & ({pos_guard_str if not always_allowed else 'true'}) " \
+                                    f"& {lane_change_guard}"
                         if len(updates):
                             _write_with_newline_and_sc(f"{action_str} {guard_str} -> {' + '.join(updates)}", output)
                 # if allow_worn_progress:
@@ -341,11 +353,26 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f'label \"goal{idx}\" = reached{idx}', output)
 
             if is_game:
+                # Player definitions
                 _write_with_newline_and_sc(f"player p{idx}", output, False)
                 worn_actions = f"[worn_{idx}]"
                 if allow_worn_progress: worn_actions = f"{', '.join(map(lambda l: f'[worn_{idx}_l{l}]', range(tls)))}"
                 _write_with_newline_and_sc(f"racecar{idx}, {', '.join(action_set.values())}, [pit_{idx}], [goal_{idx}]", output, False)
                 _write_with_newline_and_sc("endplayer", output, False)
+
+            # Lane changing rules
+            if len(car_definitions) > 1:
+                near_strings = []
+                for opp in range(len(car_definitions)):
+                    if opp == idx: continue
+                    near_strings.append(
+                        f"(t{idx}-t{opp}<=0 & t{idx}-t{opp} >=-{2 * time_precision.value})")
+                car_near_and_ahead_condition = f"{' | '.join(near_strings)}"
+                track_pos_condition = f"{' | '.join(map(lambda pos: f'track_pos={track_def.landmarks.index(pos)}', filter(lambda landmark: type(landmark)==TrackStraight, track_def.landmarks)))}"
+                num_change_condition = f"lane_changes{idx} < 1"
+                _write_with_newline_and_sc(f"formula lane_changes_allowed{idx} = (({car_near_and_ahead_condition}) & ({track_pos_condition}))? {num_change_condition} : true", output)
+            else:
+                _write_with_newline_and_sc(f"formula lane_changes_allowed{idx} = true", output)
 
         if len(car_definitions) > 1:
             crash_strings = []
@@ -437,6 +464,8 @@ if __name__ == "__main__":
     components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=8, degrees=360, exit_length=5),
                   TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0),TrackStraight(5.0, LANES),]
 
+    components = [TrackStraight(5, LANES), TrackStraight(5.0, LANES), TrackStraight(5.0, LANES), TrackStraight(5.0, LANES)]
+
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
                      tire_wear_factor=3.4,
@@ -446,7 +475,7 @@ if __name__ == "__main__":
                      init_time=0, init_tire=0, init_line=1, init_velocity=3, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
-    generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Seconds, is_game=True, allow_worn_progress=False)
+    generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
     formula_str = "R{\"total_time\"}min=? [F \"goal\"]"
     print("Generated Prism Program")
     print(datetime.now())
