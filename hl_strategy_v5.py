@@ -297,8 +297,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                             lane_change_count_update = f"lane_changes{idx}'=lane_changes{idx}"
                             for section_idx, section in enumerate(track_definition.landmarks):
                                 dist = math.sqrt(
-                                    (section.lengths[cur_lane]) ** 2 + (
-                                                abs(cur_lane - action[2]) * (track_definition.width) / (tls + 1)) ** 2)
+                                    ((section.lengths[cur_lane]) ** 2) + ((abs(cur_lane - action[2]) * (track_definition.width) / (tls-1)) ** 2)) if tls > 1 else section.lengths[cur_lane]
                                 min_time = calc_min_time(avg_init_v, v, dist,
                                                          car_definition.max_braking, car_definition.max_acceleration, car_definition.max_v)
                                 if min_time is None:
@@ -451,21 +450,20 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
 if __name__ == "__main__":
     LANES = 2
-    WIDTH = 5
+    WIDTH = 1
     LENGTH = 2
     pit_exit_p = 1
     pit_exit_v = 3
     pit_exit_line = 0
     pit_time = 5
-    components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
-                  TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0), TrackStraight(5.0, LANES),
-                  TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
-                  TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0)]
-    components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=8, degrees=360, exit_length=5),
-                  TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0),TrackStraight(5.0, LANES),]
+    # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
+    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0), TrackStraight(5.0, LANES),
+    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
+    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0)]
+    # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
+    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0),TrackStraight(5.0, LANES),]
 
-    components = [TrackStraight(5, LANES), TrackStraight(5.0, LANES), TrackStraight(5.0, LANES), TrackStraight(5.0, LANES)]
-
+    components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
                      tire_wear_factor=3.4,
