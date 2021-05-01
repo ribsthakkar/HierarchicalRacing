@@ -232,7 +232,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             for i in range(tps):
                 for action in action_set:
                     avg_v = (action[0] + action[1])/2
-                    target_section = track_definition.landmarks[(i+1)%tps]
+                    target_section = track_definition.landmarks[(i)%tps]
                     for ta in range(0, MAX_TIRE_AGE+1):
                         if not target_section.is_v_feasible(avg_v, action[2], ta, car_definition.min_gs, car_definition.max_gs): break
                     _write_with_newline_and_sc(f"formula sec{i}_b{action[0]}_a{action[1]}_l{action[2]}_c{idx} = tire_age{idx} < {ta} & track_pos={i} & lap<num_laps", output)
@@ -280,7 +280,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f'module racecar{idx}\n', output, False)
             _write_with_newline_and_sc(f't{idx} : [0..max_time] init {init_time}', output)
             _write_with_newline_and_sc(f'track_lane{idx} : [0..{max(1, tls-1)}] init {init_line}', output)
-            _write_with_newline_and_sc(f'lane_changes{idx} : int init 0', output)
+            _write_with_newline_and_sc(f'lane_changes{idx} : [0..2] init 0', output)
             _write_with_newline_and_sc(f'velocity{idx} : [1..{max_v}] init p{idx}_init_v', output)
             _write_with_newline_and_sc(f'reached{idx} : bool init false', output)
             for cur_lane in range(tls):
@@ -423,6 +423,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
             _write_with_newline_and_sc("endmodule\n", output, False)
 
+            _write_with_newline_and_sc("player scheduler", output, False)
+            _write_with_newline_and_sc("turns, [lap_update]", output, False)
+            _write_with_newline_and_sc("endplayer", output, False)
+
             # Define Formulas for who gets to choose an action first
             if len(car_definitions) > 1:
                 _write_with_newline_and_sc(f"const int M=1000", output)
@@ -449,7 +453,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
 
 if __name__ == "__main__":
-    LANES = 2
+    LANES = 3
     WIDTH = 1
     LENGTH = 2
     pit_exit_p = 1
