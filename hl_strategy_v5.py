@@ -448,7 +448,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                     min_t_str = f"t{1 if idx==0 else 0}"
                 else:
                     min_t_str = f"min({','.join(map(str, filter(lambda i: i != idx, range(len(car_definitions)))))})"
-                _write_with_newline_and_sc(f"{guard}: max({min_t_str}-t{idx}, 0)", output)
+                _write_with_newline_and_sc(f"{guard}: max_time + {min_t_str}-t{idx}", output)
                 _write_with_newline_and_sc("endrewards", output, False)
 
 
