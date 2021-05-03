@@ -283,6 +283,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f'lane_changes{idx} : [0..2] init 0', output)
             _write_with_newline_and_sc(f'velocity{idx} : [1..{max_v}] init p{idx}_init_v', output)
             _write_with_newline_and_sc(f'reached{idx} : bool init false', output)
+            _write_with_newline_and_sc(f'worn{idx} : bool init false', output)
             for cur_lane in range(tls):
                 for cur_v in range(1, car_definition.max_v+math.ceil(velocity_step/2), velocity_step):
                     for action, action_string in action_set.items():
@@ -341,6 +342,12 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
             _write_with_newline_and_sc(f"[lap_update] true -> (t{idx}'=t{idx}-min({','.join(map(lambda i: f't{i}', range(len(car_definitions))))}))", output)
 
+            action = f"[worn_{idx}]"
+            guard = f"p{idx}_go & !worn_game"
+            _write_with_newline_and_sc(
+                f"{action} {guard} -> 1:(worn{idx}'=true)",
+                output)
+
             action = f"[goal_{idx}]"
             guard = f"p{idx}_go & lap=num_laps & !reached{idx}"
             _write_with_newline_and_sc(
@@ -356,7 +363,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                 _write_with_newline_and_sc(f"player p{idx}", output, False)
                 worn_actions = f"[worn_{idx}]"
                 if allow_worn_progress: worn_actions = f"{', '.join(map(lambda l: f'[worn_{idx}_l{l}]', range(tls)))}"
-                _write_with_newline_and_sc(f"racecar{idx}, {', '.join(action_set.values())}, [pit_{idx}], [goal_{idx}]", output, False)
+                _write_with_newline_and_sc(f"racecar{idx}, {', '.join(action_set.values())}, [pit_{idx}], [goal_{idx}], [worn_{idx}]", output, False)
                 _write_with_newline_and_sc("endplayer", output, False)
 
             # Lane changing rules
@@ -378,53 +385,57 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             for pair in itertools.combinations(list(range(len(car_definitions))), 2):
                 crash_strings.append(f"((turn{pair[0]} = turn{pair[1]}) & (track_lane{pair[0]} = track_lane{pair[1]}) & (t{pair[0]}-t{pair[1]}<={crash_tolerance*time_precision.value} & t{pair[0]}-t{pair[1]} >=-{crash_tolerance*time_precision.value}))")
             _write_with_newline_and_sc(f"label \"crash\" = {' | '.join(crash_strings)}", output)
-
+            _write_with_newline_and_sc(f"formula is_crash = {' | '.join(crash_strings)}", output)
+        _write_with_newline_and_sc(f"formula worn_game = {' | '.join(map(lambda i: f'worn{i}', range(len(car_definitions))))}", output)
         if game_type == 'smg':
+            _write_with_newline_and_sc(f"label \"end\" = end_state", output)
             # Turn Module
             _write_with_newline_and_sc("module turns", output, False)
             for i in range(len(car_definitions)):
                 _write_with_newline_and_sc(f"turn{i}: [0..1] init 0", output)
             _write_with_newline_and_sc(f"track_pos: [0..{max(1, tps-1)}] init 0", output)
             _write_with_newline_and_sc(f"lap: [0..num_laps] init 0", output)
-            _write_with_newline_and_sc(f"""[] {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos < {tps-1} -> (track_pos'=track_pos+1)& {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""", output)
-            _write_with_newline_and_sc(f"""[lap_update] {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos = {tps-1} -> (track_pos'=0) & (lap'=lap+1) & {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""", output)
-            for i in range(len(car_definitions)):
-                if len(car_definitions) > 1:
+            _write_with_newline_and_sc(f"end_state: bool init false", output)
+            if len(car_definitions) > 1:
+                for i in range(len(car_definitions)):
                     for action_str in player_action_str[i]:
-                        _write_with_newline_and_sc(f"{action_str} true -> (turn{i}'=1)", output)
-                    # if not allow_worn_progress:
-                    #     _write_with_newline_and_sc(
-                    #         f"[worn_{i}] true -> (turn{i}'=1)", output)
-                    # else:
-                    #     for l in range(tls):
-                    #         _write_with_newline_and_sc(
-                    #             f"[worn_{i}_l{l}] true -> (turn{i}'=1)",
-                    #             output)
+                        _write_with_newline_and_sc(f"{action_str} !end_state -> (turn{i}'=1)", output)
+
                     _write_with_newline_and_sc(
-                        f"[pit_{i}] true -> (turn{i}'=1)", output)
+                        f"[pit_{i}] !end_state -> (turn{i}'=1)", output)
                     _write_with_newline_and_sc(
-                        f"[goal_{i}] true -> (turn{i}'=1)", output)
-                else:
-                    for action_str in player_action_str[i]:
-                        _write_with_newline_and_sc(f"{action_str} true -> (turn{i}'=1)", output)
-                    # if not allow_worn_progress:
-                    #     _write_with_newline_and_sc(f"[worn_{i}] true -> (turn{i}'=1)", output)
-                    # else:
-                    #     for l in range(tls):
-                    #         _write_with_newline_and_sc(f"[worn_{i}_l{l}] true -> (turn{i}'=1)", output)
-                    _write_with_newline_and_sc(f"[pit_{i}] true -> (turn{i}'=1)", output)
-                    _write_with_newline_and_sc(f"[goal_{i}] true -> (turn{i}'=1)", output)
+                        f"[goal_{i}] !end_state -> (turn{i}'=1)", output)
                     _write_with_newline_and_sc(
-                        f"[] turn{i}=1 & track_pos < {tps - 1} -> (track_pos'=track_pos+1) & (turn{i}'=0)",
-                        output)
-                    _write_with_newline_and_sc(
-                        f"[lap_update] turn{i}=1 & track_pos = {tps - 1} & lap < num_laps -> (track_pos'=0) & (turn{i}'=0) & (lap'=lap+1)",
-                        output)
+                        f"[worn_{i}] !end_state -> (turn{i}'=1)", output)
+                _write_with_newline_and_sc(f"[end_update] !end_state & (({' & '.join(map(lambda i: f'reached{i}', range(len(car_definitions))))}) | (worn_game & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))})) -> (end_state'=true)", output)
+                _write_with_newline_and_sc(
+                    f"""[pos_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos < {tps - 1} -> (track_pos'=track_pos+1)& {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
+                    output)
+                _write_with_newline_and_sc(
+                    f"""[lap_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos = {tps - 1} -> (track_pos'=0) & (lap'=lap+1) & {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
+                    output)
+            else:
+                for action_str in player_action_str[i]:
+                    _write_with_newline_and_sc(f"{action_str} !end_state -> (turn{i}'=1)", output)
+                # if not allow_worn_progress:
+                #     _write_with_newline_and_sc(f"[worn_{i}] true -> (turn{i}'=1)", output)
+                # else:
+                #     for l in range(tls):
+                #         _write_with_newline_and_sc(f"[worn_{i}_l{l}] true -> (turn{i}'=1)", output)
+                _write_with_newline_and_sc(f"[pit_{i}] !end_state -> (turn{i}'=1)", output)
+                _write_with_newline_and_sc(f"[goal_{i}] !end_state -> (turn{i}'=1)", output)
+                _write_with_newline_and_sc(f"[worn_{i}] !end_state -> (turn{i}'=1)", output)
+                _write_with_newline_and_sc(
+                    f"[pos_update] !worn_game & !end_state & turn{i}=1 & track_pos < {tps - 1} -> (track_pos'=track_pos+1) & (turn{i}'=0)",
+                    output)
+                _write_with_newline_and_sc(
+                    f"[lap_update] !worn_game & !end_state & turn{i}=1 & track_pos = {tps - 1} & lap < num_laps -> (track_pos'=0) & (turn{i}'=0) & (lap'=lap+1)",
+                    output)
 
             _write_with_newline_and_sc("endmodule\n", output, False)
 
             _write_with_newline_and_sc("player scheduler", output, False)
-            _write_with_newline_and_sc("turns, [lap_update]", output, False)
+            _write_with_newline_and_sc("turns, [lap_update], [pos_update], [end_update]", output, False)
             _write_with_newline_and_sc("endplayer", output, False)
 
             # Define Formulas for who gets to choose an action first
@@ -443,12 +454,15 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
         if is_game and len(car_definitions) > 1:
             for idx in range(len(car_definitions)):
                 _write_with_newline_and_sc(f"rewards \"time_diff{idx}\"", output, False)
-                guard = f"lap=num_laps & {' & '.join(map(lambda i: f'!reached{i}', range(len(car_definitions))))}"
+                guard = f"lap=num_laps & {' & '.join(map(lambda i: f'!reached{i}', range(len(car_definitions))))} & !worn{idx}"
                 if len(car_definitions) == 2:
                     min_t_str = f"t{1 if idx==0 else 0}"
                 else:
                     min_t_str = f"min({','.join(map(str, filter(lambda i: i != idx, range(len(car_definitions)))))})"
                 _write_with_newline_and_sc(f"{guard}: max_time + {min_t_str}-t{idx}", output)
+
+                guard = f"!end_state & !worn{idx} & ({' | '.join(map(lambda i: f'worn{i}', filter(lambda i: i != idx, range(len(car_definitions)))))})"
+                _write_with_newline_and_sc(f"{guard}: 1000", output)
                 _write_with_newline_and_sc("endrewards", output, False)
 
 
