@@ -1,2 +1,6 @@
-<<p1>>R{"time_diff1"}max=? [!"crash" U "goal1"]
+<<p1>>R{"time_diff1"}max=? [ ((!"crash") U ("goal1" & "goal0"))]
+
+<<p0>>R{"time_diff0"}max=? [ !"crash" U ("goal1"&"goal0") ]
+
+Pmax=? [ (!"crash") U ("goal1"&"goal0") ]
 

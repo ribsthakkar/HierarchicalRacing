@@ -37,11 +37,11 @@ def calc_min_time(u, v, s, a_min, a_max, v_max):
 
     def distance_constraint(x):
         iv = u + a_max*x[0]
-        dist = u*x[0] + a_max*x[0]
+        dist = u*x[0] + 0.5*a_max*x[0]*x[0]
         dist += (x[1]-x[0])*iv
         fv = iv + -abs(a_min)*(x[2]-x[1])
         dist += (iv + fv)*(x[2]-x[1])/2
-        dist += x[3]*fv
+        dist += (x[3]-x[2])*fv
         return dist
     nlc = NonlinearConstraint(distance_constraint, s, s)
     constraints.append(nlc)
@@ -223,7 +223,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
             # Define Fixed Action Set
             action_set = {}
-            for velocity in range(1, max_v+math.ceil(velocity_step//2), car_definition.velocity_step):
+            for velocity in range(1, max_v+math.ceil(velocity_step/2), car_definition.velocity_step):
                 ub = min(max_v+1, velocity+velocity_step)
                 for lane in range(tls):
                     action_set[(velocity, ub, lane)] = f"[step{idx}_b{velocity}_a{ub}_l{lane}]"
@@ -231,7 +231,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             # Define Track Section Formulas
             for i in range(tps):
                 for action in action_set:
-                    avg_v = (action[0] + action[1])/2
+                    avg_v = (action[0] + min(action[1]-1, max_v))/2
                     target_section = track_definition.landmarks[(i)%tps]
                     for ta in range(0, MAX_TIRE_AGE+1):
                         if not target_section.is_v_feasible(avg_v, action[2], ta, car_definition.min_gs, car_definition.max_gs): break
@@ -284,10 +284,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f'velocity{idx} : [1..{max_v}] init p{idx}_init_v', output)
             _write_with_newline_and_sc(f'reached{idx} : bool init false', output)
             for cur_lane in range(tls):
-                for cur_v in range(1, car_definition.max_v+math.ceil(velocity_step//2), velocity_step):
+                for cur_v in range(1, car_definition.max_v+math.ceil(velocity_step/2), velocity_step):
                     for action, action_string in action_set.items():
                         action_str = f"{action_string}"
-                        avg_init_v = (cur_v + cur_v+velocity_step)/2
+                        avg_init_v = (cur_v + min(cur_v+velocity_step-1, max_v))/2
                         max_dt = 0
                         updates = []
                         always_allowed=True
@@ -467,7 +467,9 @@ if __name__ == "__main__":
     # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
     #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0),TrackStraight(5.0, LANES),]
 
-    components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),]
+    # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
+    #               TrackStraight(5, LANES),]
+    components = [TrackStraight(3, LANES), TrackStraight(3, LANES), ]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
                      tire_wear_factor=3.4,
