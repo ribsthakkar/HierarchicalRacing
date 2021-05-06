@@ -292,9 +292,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         avg_init_v = (cur_v + min(cur_v+velocity_step-1, max_v))/2
                         max_dt = 0
                         updates = []
+                        t_updates = []
                         always_allowed=True
                         for v in range(action[0], action[1]):
-                            t_update_str = f"t{idx}'=t{idx}"
+                            t_update_str = f"t{idx}"
                             pos_guard_str = f"false"
                             lane_change_count_update = f"lane_changes{idx}'=lane_changes{idx}"
                             for section_idx, section in enumerate(track_definition.landmarks):
@@ -310,15 +311,23 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                                 t_update_str += f"+({dt}*{active_section_strings[section_idx]})"
                                 lane_change_count_update += f"+ ({1 if type(section)==TrackStraight else f'-lane_changes{idx}'} * {active_section_strings[section_idx]})"
                                 pos_guard_str += f" | track_pos={section_idx}"
-                            update_str = f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})&({lane_change_count_update})" if cur_lane != action[2] else f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})"
+                            update_str = f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&(t{idx}'={t_update_str})&({lane_change_count_update})" if cur_lane != action[2] else f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})"
                             updates.append(update_str)
+                            t_updates.append(f"({t_update_str})")
                         lane_change_guard = "true" if cur_lane == action[2] else f"lane_changes_allowed{idx}"
                         prob_str = f"1/{len(updates)}"
+                        crash_guards = []
+                        for t_update in t_updates:
+                            for opp in range(len(car_definitions)):
+                                if opp ==idx: continue
+                                crash_guards.append(
+                                    f"(({action[2]} = track_lane{opp}) & ({t_update}-t{opp}<{max(1, crash_tolerance * time_precision.value)}) & ({t_update}-t{opp} >-{max(1, crash_tolerance * time_precision.value)}))")
+                        crash_guard = f"!({' | '.join(crash_guards)})"
                         for i in range(len(updates)):
                             updates[i] = f"{prob_str}:{updates[i]}"
                         guard_str = f"p{idx}_go & {action_allowed_strings[action]} & track_lane{idx}={cur_lane} & t{idx}<max_time-{max_dt} " \
                                     f"& velocity{idx}>={cur_v} & velocity{idx} < {cur_v + velocity_step} & ({pos_guard_str if not always_allowed else 'true'}) " \
-                                    f"& {lane_change_guard}"
+                                    f"& {lane_change_guard} & {crash_guard}"
                         if len(updates):
                             _write_with_newline_and_sc(f"{action_str} {guard_str} -> {' + '.join(updates)}", output)
                 # if allow_worn_progress:
