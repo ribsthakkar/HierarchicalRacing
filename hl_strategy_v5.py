@@ -187,7 +187,7 @@ class TimePrecision(Enum):
     Seconds = 1
 
 
-def generate_modules(output_file, total_seconds, laps, track_definition, car_definitions, time_precision, crash_tolerance=1, is_game=False, game_type='smg', allow_worn_progress=True):
+def generate_modules(output_file, total_seconds, laps, track_definition, car_definitions, time_precision, crash_tolerance=.5, is_game=False, game_type='smg', allow_worn_progress=True):
     with open(output_file, "w+") as output:
         if not is_game:
             _write_with_newline_and_sc("mdp\n", output, False)
@@ -210,6 +210,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f"formula {active_section_strings[i]} = track_pos={i} ? 1 : 0", output)
 
         for idx, car_definition in enumerate(car_definitions):
+            if idx !=0: _write_with_newline_and_sc(f"const int p{idx}_init_tg", output)
             _write_with_newline_and_sc(f"const int p{idx}_init_ta", output)
             _write_with_newline_and_sc(f"const int p{idx}_init_v", output)
 
@@ -372,7 +373,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                 for opp in range(len(car_definitions)):
                     if opp == idx: continue
                     near_strings.append(
-                        f"(t{idx}-t{opp}<=0 & t{idx}-t{opp} >=-{2 * time_precision.value})")
+                        f"(t{idx}-t{opp}<=0 & t{idx}-t{opp} >=-{2 * time_precision.value}) & turn{opp}=0")
                 car_near_and_ahead_condition = f"{' | '.join(near_strings)}"
                 track_pos_condition = f"{' | '.join(map(lambda pos: f'track_pos={track_def.landmarks.index(pos)}', filter(lambda landmark: type(landmark)==TrackStraight, track_def.landmarks)))}"
                 num_change_condition = f"lane_changes{idx} < 1"
@@ -383,7 +384,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
         if len(car_definitions) > 1:
             crash_strings = []
             for pair in itertools.combinations(list(range(len(car_definitions))), 2):
-                crash_strings.append(f"((turn{pair[0]} = turn{pair[1]}) & (track_lane{pair[0]} = track_lane{pair[1]}) & (t{pair[0]}-t{pair[1]}<={crash_tolerance*time_precision.value} & t{pair[0]}-t{pair[1]} >=-{crash_tolerance*time_precision.value}))")
+                crash_strings.append(f"((turn{pair[0]} = turn{pair[1]}) & (track_lane{pair[0]} = track_lane{pair[1]}) & (t{pair[0]}-t{pair[1]}<{max(1, crash_tolerance*time_precision.value)} & t{pair[0]}-t{pair[1]} >-{max(1, crash_tolerance*time_precision.value)}))")
             _write_with_newline_and_sc(f"label \"crash\" = {' | '.join(crash_strings)}", output)
             _write_with_newline_and_sc(f"formula is_crash = {' | '.join(crash_strings)}", output)
         _write_with_newline_and_sc(f"formula worn_game = {' | '.join(map(lambda i: f'worn{i}', range(len(car_definitions))))}", output)
@@ -483,14 +484,14 @@ if __name__ == "__main__":
 
     # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
     #               TrackStraight(5, LANES),]
-    components = [TrackStraight(3, LANES), TrackStraight(3, LANES), ]
+    components = [TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
-    car_def1 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
-                     tire_wear_factor=3.4,
+    car_def1 = CarDef(max_velocity=4, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
+                     tire_wear_factor=1,
                      init_time=0, init_tire=0, init_line=0, init_velocity=1, init_position=0)
-    car_def2 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.1*9.8, max_gs=0.3*9.8, max_braking=4, max_acceleration=2,
-                     tire_wear_factor=3.0,
-                     init_time=0, init_tire=0, init_line=1, init_velocity=3, init_position=0)
+    car_def2 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=3,
+                     tire_wear_factor=.8,
+                     init_time=5, init_tire=0, init_line=0, init_velocity=3, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
     generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
