@@ -210,7 +210,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f"formula {active_section_strings[i]} = track_pos={i} ? 1 : 0", output)
 
         for idx, car_definition in enumerate(car_definitions):
-            if idx !=0: _write_with_newline_and_sc(f"const int p{idx}_init_tg", output)
+            if idx == 0: _write_with_newline_and_sc(f"const int p{idx}_init_tg", output)
             _write_with_newline_and_sc(f"const int p{idx}_init_ta", output)
             _write_with_newline_and_sc(f"const int p{idx}_init_v", output)
 
@@ -279,7 +279,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
 
             # Car Module
             _write_with_newline_and_sc(f'module racecar{idx}\n', output, False)
-            _write_with_newline_and_sc(f't{idx} : [0..max_time] init {init_time}', output)
+            _write_with_newline_and_sc(f"t{idx} : [0..max_time] init {init_time if idx!=0 else f'p{idx}_init_tg'}", output)
             _write_with_newline_and_sc(f'track_lane{idx} : [0..{max(1, tls-1)}] init {init_line}', output)
             _write_with_newline_and_sc(f'lane_changes{idx} : [0..2] init 0', output)
             _write_with_newline_and_sc(f'velocity{idx} : [1..{max_v}] init p{idx}_init_v', output)
