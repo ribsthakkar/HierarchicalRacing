@@ -311,7 +311,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                                 t_update_str += f"+({dt}*{active_section_strings[section_idx]})"
                                 lane_change_count_update += f"+ ({1 if type(section)==TrackStraight else f'-lane_changes{idx}'} * {active_section_strings[section_idx]})"
                                 pos_guard_str += f" | track_pos={section_idx}"
-                            update_str = f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&(t{idx}'={t_update_str})&({lane_change_count_update})" if cur_lane != action[2] else f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&({t_update_str})"
+                            update_str = f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&(t{idx}'={t_update_str})&({lane_change_count_update})" if cur_lane != action[2] else f"(velocity{idx}'={v})&(track_lane{idx}'={action[2]})&(t{idx}'={t_update_str})"
                             updates.append(update_str)
                             t_updates.append(f"({t_update_str})")
                         lane_change_guard = "true" if cur_lane == action[2] else f"lane_changes_allowed{idx}"
@@ -321,7 +321,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                             for opp in range(len(car_definitions)):
                                 if opp ==idx: continue
                                 crash_guards.append(
-                                    f"(({action[2]} = track_lane{opp}) & ({t_update}-t{opp}<{max(1, crash_tolerance * time_precision.value)}) & ({t_update}-t{opp} >-{max(1, crash_tolerance * time_precision.value)}))")
+                                    f"((turn{opp}=1) & ({action[2]} = track_lane{opp}) & ({t_update}-t{opp}<{max(1, crash_tolerance * time_precision.value)}) & ({t_update}-t{opp} >-{max(1, crash_tolerance * time_precision.value)}))")
                         crash_guard = f"!({' | '.join(crash_guards)})"
                         for i in range(len(updates)):
                             updates[i] = f"{prob_str}:{updates[i]}"
@@ -495,12 +495,12 @@ if __name__ == "__main__":
     #               TrackStraight(5, LANES),]
     components = [TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
-    car_def1 = CarDef(max_velocity=4, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
+    car_def1 = CarDef(max_velocity=6, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=2,
                      tire_wear_factor=1,
                      init_time=0, init_tire=0, init_line=0, init_velocity=1, init_position=0)
-    car_def2 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=3,
+    car_def2 = CarDef(max_velocity=6, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=3,
                      tire_wear_factor=.8,
-                     init_time=5, init_tire=0, init_line=0, init_velocity=3, init_position=0)
+                     init_time=0, init_tire=0, init_line=0, init_velocity=3, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
     generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
