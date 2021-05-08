@@ -353,7 +353,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f"[lap_update] true -> (t{idx}'=t{idx}-min({','.join(map(lambda i: f't{i}', range(len(car_definitions))))}))", output)
 
             action = f"[worn_{idx}]"
-            guard = f"p{idx}_go & !worn_game"
+            guard = f"p{idx}_go"
             _write_with_newline_and_sc(
                 f"{action} {guard} -> 1:(worn{idx}'=true)",
                 output)
@@ -471,7 +471,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                     min_t_str = f"min({','.join(map(str, filter(lambda i: i != idx, range(len(car_definitions)))))})"
                 _write_with_newline_and_sc(f"{guard}: max_time + {min_t_str}-t{idx}", output)
 
-                guard = f"!end_state & !worn{idx} & ({' | '.join(map(lambda i: f'worn{i}', filter(lambda i: i != idx, range(len(car_definitions)))))})"
+                guard = f"!end_state & !worn{idx} & ({' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))}) & ({' | '.join(map(lambda i: f'worn{i}', filter(lambda i: i != idx, range(len(car_definitions)))))})"
                 _write_with_newline_and_sc(f"{guard}: 1000", output)
                 _write_with_newline_and_sc("endrewards", output, False)
 
