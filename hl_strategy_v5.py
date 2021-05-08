@@ -495,10 +495,10 @@ if __name__ == "__main__":
     #               TrackStraight(5, LANES),]
     components = [TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
-    car_def1 = CarDef(max_velocity=6, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=2,
+    car_def1 = CarDef(max_velocity=6, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=3,
                      tire_wear_factor=1,
                      init_time=0, init_tire=0, init_line=0, init_velocity=1, init_position=0)
-    car_def2 = CarDef(max_velocity=6, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=3,
+    car_def2 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
                      tire_wear_factor=.8,
                      init_time=0, init_tire=0, init_line=0, init_velocity=3, init_position=0)
     print(datetime.now())
