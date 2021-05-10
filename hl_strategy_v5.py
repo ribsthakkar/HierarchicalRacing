@@ -72,15 +72,16 @@ def calc_min_time(u, v, s, a_min, a_max, v_max):
         # print(max_vel_constraint(result.x), distance_constraint(result.x), s, u, v, result.x)
         # print()
         return None
-    # print("u=",u, "v=",v, "s=", s, result.x[3], result.x, distance_constraint(result.x))
     return result.fun
 
 
 class CarDef:
-    def __init__(self, max_velocity, velocity_step, min_gs, max_gs, max_braking, max_acceleration, tire_wear_factor,
+    def __init__(self, min_velocity, max_velocity, main_velocity_step, init_velocity_step, min_gs, max_gs, max_braking, max_acceleration, tire_wear_factor,
                  init_tire, init_time, init_line, init_velocity, init_position):
+        self.min_v = min_velocity
         self.max_v = max_velocity
-        self.velocity_step = velocity_step
+        self.mvs = main_velocity_step
+        self.ivs = init_velocity_step
         self.max_braking = -abs(max_braking)
         self.max_acceleration = max_acceleration
         self.min_gs = min_gs
@@ -105,23 +106,25 @@ class TrackComponent:
 
 
 class TrackStraight(TrackComponent):
-    def __init__(self, length, num_lines):
+    def __init__(self, length, num_lines, component_wear_factor=.0125):
         super().__init__([length] * num_lines)
+        self.cwf = component_wear_factor
 
     def is_v_feasible(self, velocity, line, tire_wear, min_cornering_gs, max_cornering_gs):
         return True
 
     def tire_wear(self, velocity, line, tire_wear_factor):
         if velocity == 0: return 0
-        return int(self.lengths[line]*velocity*1/tire_wear_factor * 0.2)
+        return int(self.lengths[line]*velocity*tire_wear_factor*self.cwf)
 
 
 class TrackCorner:
     class Entry(TrackComponent):
-        def __init__(self, lengths, turn_radius, width, num_lines, left_turn=True):
+        def __init__(self, lengths, turn_radius, width, num_lines, left_turn=True, component_wear_factor=.075):
             super().__init__(lengths)
             order = range(num_lines) if left_turn else reversed(range(num_lines))
             self.tr = list(map(lambda l: turn_radius + l*width/num_lines, order))
+            self.cwf = component_wear_factor
 
         def is_v_feasible(self, velocity, line, tire_wear, min_cornering_gs, max_cornering_gs):
             gs = (velocity**2)/self.tr[line]
@@ -130,14 +133,15 @@ class TrackCorner:
 
         def tire_wear(self, velocity, line, tire_wear_factor):
             gs = (velocity**2)/self.tr[line]
-            return int((math.ceil(gs) * self.lengths[line]/velocity)/tire_wear_factor)
+            return int((math.ceil(gs) * self.lengths[line]/velocity)*tire_wear_factor * self.cwf)
 
 
     class Mid(TrackComponent):
-        def __init__(self, lengths, turn_radius, width, num_lines, left_turn=True):
+        def __init__(self, lengths, turn_radius, width, num_lines, left_turn=True, component_wear_factor=.075):
             super().__init__(lengths)
             order = range(num_lines) if left_turn else reversed(range(num_lines))
             self.tr = list(map(lambda l: turn_radius + l*width/num_lines, order))
+            self.cwf = component_wear_factor
 
         def is_v_feasible(self, velocity, line, tire_wear, min_cornering_gs, max_cornering_gs):
             gs = (velocity**2)/self.tr[line]
@@ -146,7 +150,7 @@ class TrackCorner:
 
         def tire_wear(self, velocity, line, tire_wear_factor):
             gs = (velocity**2)/self.tr[line]
-            return math.ceil((math.ceil(gs) * self.lengths[line]/velocity)/tire_wear_factor)
+            return int((math.ceil(gs) * self.lengths[line])*tire_wear_factor * self.cwf)
 
 
     def __init__(self, num_lines, width, inside_turn_radius, degrees, exit_length, left_turn=True):
@@ -220,12 +224,12 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             init_line = car_definition.init_line
             init_v = car_definition.init_velocity
             init_pos = car_definition.init_position
-            velocity_step = car_definition.velocity_step
+            velocity_step = car_definition.mvs
 
             # Define Fixed Action Set
             action_set = {}
-            for velocity in range(1, max_v+math.ceil(velocity_step/2), car_definition.velocity_step):
-                ub = min(max_v+1, velocity+velocity_step)
+            for velocity in range(car_definition.min_v, max_v+math.ceil(car_definition.mvs/2), car_definition.mvs):
+                ub = min(max_v+1, velocity+car_definition.mvs)
                 for lane in range(tls):
                     action_set[(velocity, ub, lane)] = f"[step{idx}_b{velocity}_a{ub}_l{lane}]"
             player_action_str.append(list(action_set.values()))
@@ -268,11 +272,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                     guard_str = f"track_pos={i} & tire_age{idx} < {MAX_TIRE_AGE+00-max_dta}"
                     if len(updates):
                         _write_with_newline_and_sc(f"{action_str} {guard_str} -> {' + '.join(updates)}", output)
-            # if allow_worn_progress:
-            #     for l in range(tls):
-            #         _write_with_newline_and_sc(f"[worn_{idx}_l{l}] true ->  1: (tire_age{idx}'=tire_age{idx})", output)
-            # else:
-            #     _write_with_newline_and_sc(f"[worn_{idx}] true ->  1: (tire_age{idx}'=tire_age{idx})", output)
+
             _write_with_newline_and_sc(f"[pit_{idx}] track_pos={tps-1} -> 1: (tire_age{idx}'=0)", output)
             _write_with_newline_and_sc(f"[goal_{idx}] true -> 1: (tire_age{idx}'=tire_age{idx})", output)
             _write_with_newline_and_sc("endmodule", output, False)
@@ -286,10 +286,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc(f'reached{idx} : bool init false', output)
             _write_with_newline_and_sc(f'worn{idx} : bool init false', output)
             for cur_lane in range(tls):
-                for cur_v in range(1, car_definition.max_v+math.ceil(velocity_step/2), velocity_step):
+                for cur_v in range(car_definition.min_v, car_definition.max_v+math.ceil(car_definition.ivs/2), car_definition.ivs):
                     for action, action_string in action_set.items():
                         action_str = f"{action_string}"
-                        avg_init_v = (cur_v + min(cur_v+velocity_step-1, max_v))/2
+                        avg_init_v = (cur_v + min(cur_v+car_definition.ivs-1, max_v))/2
                         max_dt = 0
                         updates = []
                         t_updates = []
@@ -325,30 +325,17 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         crash_guard = f"!({' | '.join(crash_guards)})"
                         for i in range(len(updates)):
                             updates[i] = f"{prob_str}:{updates[i]}"
+                        if pos_guard_str == "false":continue
                         guard_str = f"p{idx}_go & {action_allowed_strings[action]} & track_lane{idx}={cur_lane} & t{idx}<max_time-{max_dt} " \
-                                    f"& velocity{idx}>={cur_v} & velocity{idx} < {cur_v + velocity_step} & ({pos_guard_str if not always_allowed else 'true'}) " \
+                                    f"& velocity{idx}>={cur_v} & velocity{idx} < {cur_v + car_definition.ivs} & ({pos_guard_str if not always_allowed else 'true'}) " \
                                     f"& {lane_change_guard} & {crash_guard}"
                         if len(updates):
                             _write_with_newline_and_sc(f"{action_str} {guard_str} -> {' + '.join(updates)}", output)
-                # if allow_worn_progress:
-                #     action = f"[worn_{idx}_l{cur_lane}]"
-                #     t_update_str = f"t{idx}'=t{idx}"
-                #     max_dt = 0
-                #     for section_idx, section in enumerate(track_definition.landmarks):
-                #         t_update_str += f"+({math.ceil(section.lengths[cur_lane]*time_precision.value)}*{active_section_strings[section_idx]})"
-                #         max_dt = max(max_dt, math.ceil(section.lengths[cur_lane]*time_precision.value))
-                #     guard = f"p{idx}_go & tire_age{idx}>={MAX_TIRE_AGE} & t{idx} < max_time-{max_dt}"
-                #     _write_with_newline_and_sc(f"{action} {guard} -> 1:(velocity{idx}'=1) & (track_lane{idx}'=track_lane{idx}) & ({t_update_str})", output)
-            # if not allow_worn_progress:
-            #     action = f"[worn_{idx}]"
-            #     t_update_str = f"t{idx}'=max_time"
-            #     guard = f"p{idx}_go & lap < num_laps"
-            #     _write_with_newline_and_sc(f"{action} {guard} -> 1:({t_update_str})", output)
 
             action = f"[pit_{idx}]"
             guard = f"p{idx}_go & track_pos={tps-1} & t{idx}<max_time-{pit_time}"
             _write_with_newline_and_sc(
-                f"{action} {guard} -> 1:(velocity{idx}'={min(pit_out_v, max_v)}) & (track_lane{idx}'={pit_out_l}) & (t{idx}'=t{idx}+{pit_time})", output)
+                f"{action} {guard} -> 1:(velocity{idx}'={min(max(car_definition.min_v, pit_out_v), max_v)}) & (track_lane{idx}'={pit_out_l}) & (t{idx}'=t{idx}+{pit_time})", output)
 
             _write_with_newline_and_sc(f"[lap_update] true -> (t{idx}'=t{idx}-min({','.join(map(lambda i: f't{i}', range(len(car_definitions))))}))", output)
 
@@ -472,7 +459,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                 _write_with_newline_and_sc(f"{guard}: max_time + {min_t_str}-t{idx}", output)
 
                 guard = f"!end_state & !worn{idx} & ({' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))}) & ({' | '.join(map(lambda i: f'worn{i}', filter(lambda i: i != idx, range(len(car_definitions)))))})"
-                _write_with_newline_and_sc(f"{guard}: 1000", output)
+                _write_with_newline_and_sc(f"{guard}: 1000 - track_pos", output)
                 _write_with_newline_and_sc("endrewards", output, False)
 
 
@@ -484,6 +471,7 @@ if __name__ == "__main__":
     pit_exit_v = 3
     pit_exit_line = 0
     pit_time = 5
+    MAX_TIRE_AGE = 100
     # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
     #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0), TrackStraight(5.0, LANES),
     #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
@@ -491,19 +479,17 @@ if __name__ == "__main__":
     # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
     #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0),TrackStraight(5.0, LANES),]
 
-    # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
-    #               TrackStraight(5, LANES),]
-    components = [TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),TrackStraight(3, LANES),]
+    components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=180, exit_length=3),]
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
-    car_def1 = CarDef(max_velocity=6, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=3,
-                     tire_wear_factor=1,
-                     init_time=0, init_tire=0, init_line=0, init_velocity=1, init_position=0)
-    car_def2 = CarDef(max_velocity=5, velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
-                     tire_wear_factor=.8,
+    car_def1 = CarDef(min_velocity=2, max_velocity=7, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.6*9.8, max_braking=4, max_acceleration=3,
+                     tire_wear_factor=1.0,
+                     init_time=0, init_tire=0, init_line=1, init_velocity=1, init_position=0)
+    car_def2 = CarDef(min_velocity=2, max_velocity=5, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
+                     tire_wear_factor=1.2,
                      init_time=0, init_tire=0, init_line=0, init_velocity=3, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
-    generate_modules('result.txt', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
+    generate_modules('two_player_smg.prism', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
     formula_str = "R{\"total_time\"}min=? [F \"goal\"]"
     print("Generated Prism Program")
     print(datetime.now())
