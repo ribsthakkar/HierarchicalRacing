@@ -472,24 +472,27 @@ if __name__ == "__main__":
     pit_exit_line = 0
     pit_time = 5
     MAX_TIRE_AGE = 100
-    # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
-    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0), TrackStraight(5.0, LANES),
-    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=2.3),
-    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0)]
-    # components = [TrackStraight(5, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5),
-    #               TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=90, exit_length=5.0),TrackStraight(5.0, LANES),]
 
+    ## SCENARIO 1
+    # components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackStraight(3, LANES), TrackStraight(3, LANES),TrackStraight(3, LANES),]
+
+    ## SCENARIO 2
     components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=180, exit_length=3),]
+
+
+    ## SCENARIO 3
+    # components = []
+
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(min_velocity=2, max_velocity=7, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.6*9.8, max_braking=4, max_acceleration=3,
                      tire_wear_factor=1.0,
                      init_time=0, init_tire=0, init_line=1, init_velocity=1, init_position=0)
-    car_def2 = CarDef(min_velocity=2, max_velocity=5, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
+    car_def2 = CarDef(min_velocity=2, max_velocity=6, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
                      tire_wear_factor=1.2,
                      init_time=0, init_tire=0, init_line=0, init_velocity=3, init_position=0)
     print(datetime.now())
     print("Generating Prism Program...")
-    generate_modules('two_player_smg.prism', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
+    generate_modules('two_player_smg2.prism', total_seconds=500, laps=10, track_definition=track_def, car_definitions=[car_def1, car_def2], time_precision=TimePrecision.Tenths, is_game=True, allow_worn_progress=False)
     formula_str = "R{\"total_time\"}min=? [F \"goal\"]"
     print("Generated Prism Program")
     print(datetime.now())
