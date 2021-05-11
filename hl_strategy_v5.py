@@ -486,7 +486,7 @@ if __name__ == "__main__":
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(min_velocity=2, max_velocity=7, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.6*9.8, max_braking=4, max_acceleration=3,
                      tire_wear_factor=1.0,
-                     init_time=0, init_tire=0, init_line=1, init_velocity=1, init_position=0)
+                     init_time=0, init_tire=0, init_line=0, init_velocity=1, init_position=0)
     car_def2 = CarDef(min_velocity=2, max_velocity=6, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.7*9.8, max_braking=4, max_acceleration=4,
                      tire_wear_factor=1.2,
                      init_time=0, init_tire=0, init_line=0, init_velocity=3, init_position=0)
