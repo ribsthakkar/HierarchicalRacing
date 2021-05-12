@@ -333,7 +333,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                             _write_with_newline_and_sc(f"{action_str} {guard_str} -> {' + '.join(updates)}", output)
 
             action = f"[pit_{idx}]"
-            guard = f"p{idx}_go & track_pos={tps} & t{idx}<max_time-{pit_time}"
+            guard = f"p{idx}_go & track_pos={tps-1} & t{idx}<max_time-{pit_time}"
             _write_with_newline_and_sc(
                 f"{action} {guard} -> 1:(velocity{idx}'={min(max(car_definition.min_v, pit_out_v), max_v)}) & (track_lane{idx}'={pit_out_l}) & (t{idx}'=t{idx}+{pit_time})", output)
 
@@ -390,7 +390,7 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
             _write_with_newline_and_sc("module turns", output, False)
             for i in range(len(car_definitions)):
                 _write_with_newline_and_sc(f"turn{i}: [0..1] init 0", output)
-            _write_with_newline_and_sc(f"track_pos: [0..{max(1, tps)}] init 0", output)
+            _write_with_newline_and_sc(f"track_pos: [0..{max(1, tps-1)}] init 0", output)
             _write_with_newline_and_sc(f"lap: [0..num_laps] init 0", output)
             _write_with_newline_and_sc(f"end_state: bool init false", output)
             if len(car_definitions) > 1:
@@ -406,10 +406,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         f"[worn_{i}] !end_state -> (turn{i}'=1)", output)
                 _write_with_newline_and_sc(f"[end_update] !end_state & (({' & '.join(map(lambda i: f'reached{i}', range(len(car_definitions))))}) | (worn_game & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))})) -> (end_state'=true)", output)
                 _write_with_newline_and_sc(
-                    f"""[pos_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos <= {tps - 1} -> (track_pos'=track_pos+1)& {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
+                    f"""[pos_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos < {tps - 1} -> (track_pos'=track_pos+1)& {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
                     output)
                 _write_with_newline_and_sc(
-                    f"""[lap_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos = {tps} -> (track_pos'=0) & (lap'=lap+1) & {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
+                    f"""[lap_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos = {tps - 1} -> (track_pos'=0) & (lap'=lap+1) & {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
                     output)
             else:
                 for action_str in player_action_str[i]:
@@ -423,10 +423,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                 _write_with_newline_and_sc(f"[goal_{i}] !end_state -> (turn{i}'=1)", output)
                 _write_with_newline_and_sc(f"[worn_{i}] !end_state -> (turn{i}'=1)", output)
                 _write_with_newline_and_sc(
-                    f"[pos_update] !worn_game & !end_state & turn{i}=1 & track_pos <= {tps - 1} -> (track_pos'=track_pos+1) & (turn{i}'=0)",
+                    f"[pos_update] !worn_game & !end_state & turn{i}=1 & track_pos < {tps - 1} -> (track_pos'=track_pos+1) & (turn{i}'=0)",
                     output)
                 _write_with_newline_and_sc(
-                    f"[lap_update] !worn_game & !end_state & turn{i}=1 & track_pos = {tps} & lap < num_laps -> (track_pos'=0) & (turn{i}'=0) & (lap'=lap+1)",
+                    f"[lap_update] !worn_game & !end_state & turn{i}=1 & track_pos = {tps - 1} & lap < num_laps -> (track_pos'=0) & (turn{i}'=0) & (lap'=lap+1)",
                     output)
 
             _write_with_newline_and_sc("endmodule\n", output, False)
