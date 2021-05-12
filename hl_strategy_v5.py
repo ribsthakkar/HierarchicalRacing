@@ -406,10 +406,10 @@ def generate_modules(output_file, total_seconds, laps, track_definition, car_def
                         f"[worn_{i}] !end_state -> (turn{i}'=1)", output)
                 _write_with_newline_and_sc(f"[end_update] !end_state & (({' & '.join(map(lambda i: f'reached{i}', range(len(car_definitions))))}) | (worn_game & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))})) -> (end_state'=true)", output)
                 _write_with_newline_and_sc(
-                    f"""[pos_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos < {tps - 1} -> (track_pos'=track_pos+1)& {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
+                    f"""[pos_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos <= {tps - 1} -> (track_pos'=track_pos+1)& {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
                     output)
                 _write_with_newline_and_sc(
-                    f"""[lap_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos = {tps - 1} -> (track_pos'=0) & (lap'=lap+1) & {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
+                    f"""[lap_update] !worn_game & !end_state & {' & '.join(map(lambda i: f'turn{i}=1', range(len(car_definitions))))} & track_pos = {tps} -> (track_pos'=0) & (lap'=lap+1) & {' & '.join(map(lambda i: f"(turn{i}'=0)", range(len(car_definitions))))}""",
                     output)
             else:
                 for action_str in player_action_str[i]:
