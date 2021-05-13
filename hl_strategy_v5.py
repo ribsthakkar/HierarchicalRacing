@@ -160,6 +160,49 @@ class TrackCorner:
         self.mid = self.Mid([turn_length/2 for turn_length in turn_lengths], inside_turn_radius, width, num_lines, left_turn)
         self.exit = TrackStraight(exit_length, num_lines)
 
+class TrackChicane:
+    class Entry(TrackComponent):
+        def __init__(self, lengths, turn_radius, width, num_lines, left_turn=True, component_wear_factor=.075):
+            super().__init__(lengths)
+            order = range(num_lines) if left_turn else reversed(range(num_lines))
+            self.tr = list(map(lambda l: turn_radius + l*width/num_lines, order))
+            self.cwf = component_wear_factor
+
+        def is_v_feasible(self, velocity, line, tire_wear, min_cornering_gs, max_cornering_gs):
+            gs = (velocity**2)/self.tr[line]
+            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/MAX_TIRE_AGE)
+            return gs <= max_cornering_gs-g_diff
+
+        def tire_wear(self, velocity, line, tire_wear_factor):
+            gs = (velocity**2)/self.tr[line]
+            return int((math.ceil(gs) * self.lengths[line]/velocity)*tire_wear_factor * self.cwf)
+
+
+    class Mid(TrackComponent):
+        def __init__(self, lengths, turn_radius, width, num_lines, left_turn=True, component_wear_factor=.075):
+            super().__init__(lengths)
+            order = range(num_lines) if left_turn else reversed(range(num_lines))
+            self.tr = list(map(lambda l: turn_radius + l*width/num_lines, order))
+            self.cwf = component_wear_factor
+
+        def is_v_feasible(self, velocity, line, tire_wear, min_cornering_gs, max_cornering_gs):
+            gs = (velocity**2)/self.tr[line]
+            g_diff = (max_cornering_gs-min_cornering_gs)*(tire_wear/MAX_TIRE_AGE)
+            return gs <= max_cornering_gs-g_diff
+
+        def tire_wear(self, velocity, line, tire_wear_factor):
+            gs = (velocity**2)/self.tr[line]
+            return int((math.ceil(gs) * self.lengths[line])*tire_wear_factor * self.cwf)
+
+
+    def __init__(self, num_lines, width, inside_turn_radius, degrees, exit_length, left_turn_first=True):
+        order = list(range(num_lines)) if left_turn_first else list(reversed(range(num_lines)))
+        turn_lengths_entry = [math.radians(degrees) * radius for radius in map(lambda l: inside_turn_radius + l*width/num_lines, order)]
+        turn_lengths_mid = [math.radians(degrees) * radius for radius in map(lambda l: inside_turn_radius + l*width/num_lines, reversed(order))]
+        self.entry = self.Entry([turn_length for turn_length in turn_lengths_entry], inside_turn_radius, width, num_lines, left_turn_first)
+        self.mid = self.Mid([turn_length for turn_length in turn_lengths_mid], inside_turn_radius, width, num_lines, not left_turn_first)
+        self.exit = TrackStraight(exit_length, num_lines)
+
 
 class TrackDef:
     def __init__(self, track_landmarks, width, num_lanes, pit_exit_position, pit_exit_velocity, pit_exit_line, pit_time):
@@ -177,7 +220,7 @@ class TrackDef:
         for l in input_landmarks:
             if type(l) == TrackStraight:
                 output.append(l)
-            elif type(l) == TrackCorner:
+            elif type(l) == TrackCorner or type(l) == TrackChicane:
                 output.append(l.entry)
                 output.append(l.mid)
                 output.append(l.exit)
@@ -477,11 +520,11 @@ if __name__ == "__main__":
     # components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackStraight(3, LANES), TrackStraight(3, LANES),TrackStraight(3, LANES),]
 
     ## SCENARIO 2
-    components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=180, exit_length=3),]
+    components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackCorner(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=180, exit_length=3, left_turn=False),]
 
 
     ## SCENARIO 3
-    # components = []
+    # components = [TrackStraight(3, LANES), TrackStraight(3, LANES), TrackChicane(num_lines=LANES, width=WIDTH, inside_turn_radius=2.5, degrees=80, exit_length=3, left_turn_first=False),]
 
     track_def = TrackDef(components, width=WIDTH, num_lanes=LANES, pit_exit_position=pit_exit_p, pit_exit_velocity=pit_exit_v, pit_exit_line=pit_exit_line, pit_time=pit_time)
     car_def1 = CarDef(min_velocity=2, max_velocity=7, main_velocity_step=1, init_velocity_step=1, min_gs=0.3*9.8, max_gs=0.6*9.8, max_braking=4, max_acceleration=3,
