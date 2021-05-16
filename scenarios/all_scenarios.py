@@ -12,7 +12,7 @@ print("LONG STRAIGHT SCENARIO 1")
 results = {}
 for tg in range(5, 10):
     for p1v in range(2, 5):
-        for p0v in range(2, 5):
+        for p0v in range(2, 6):
             if (tg, p1v, p0v) in results: continue
             mt = 43 + tg
 
@@ -37,13 +37,9 @@ for tg in range(5, 10):
 print("HAIRPIN SCENARIO 2")
 for tg in range(5, 6):
     for p1v in range(2, 5):
-        if p1v < 3: continue
         for p0v in range(3, 6):
-            if p1v <=3 and p0v < 5: continue
             for p0ta in range(5, 90, 15):
-                if p1v <= 3 and p0v <= 5 and p0ta < 50: continue
                 for p1ta in range(5, 90, 15):
-                    if p1v <= 3 and p0v <= 5 and p0ta <= 50 and p1ta < 20: continue
                     mt = 50+tg
                     command = [f"C:/JDK/OpenJDK/jdk-11/bin/java.exe",
                                f"-Xmx128g",
