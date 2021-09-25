@@ -9,14 +9,7 @@ from util import round_to_fraction, gravitational_acceleration, find_smallest_ro
     dist, pos_estimate_functions, is_greater_than, log_leq_barrier_function_value
 
 
-class DriveModes(Enum):
-    FOLLOW = 1
-    PASS = 2
-    RACE = 3
-    BLOCK = 4
-
-
-class InputModes:
+class DiscreteVelocityHeadingModeManager:
     def __init__(self, max_acceleration, max_braking, max_cornering_gs, max_velocity, max_steering_angle, vel_precision=0.5, heading_precision= TPI/1000):
         self.max_acc = max_acceleration
         self.max_brak = max_braking
@@ -154,7 +147,7 @@ class InputModes:
         # vf = math.sqrt((state.dy + state.d2y*dt)**2 + (state.dx + state.d2x*dt)**2)
         # x_pos_f, y_pos_f, h_pos_f = self._pos_functions(state.x, state.y, vi, vf, hi, hf, dt)
         # print(state.old_x, state.old_y, state.last_mode[0], state.mode[0], state.last_mode[1], state.mode[1], dt)
-        x_pos_f, y_pos_f, h_pos_f = pos_estimate_functions(state.old_x, state.old_y, state.old_v, state.v, state.old_heading, state.heading, dt)
+        x_pos_f, y_pos_f, h_pos_f = pos_estimate_functions(state.x, state.y, state.old_v, state.v, state.old_heading, state.heading, dt)
         return [rect_from_center(x, y, state.l, state.w, h) for x, y, h in zip(map(x_pos_f, np.linspace(0, dt)),
                                                                                map(y_pos_f, np.linspace(0, dt)),
                                                                                map(h_pos_f, np.linspace(0, dt)))]
