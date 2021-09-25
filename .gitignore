@@ -5,3 +5,5 @@ procedural-tracks/
 __pycache__/
 result*.txt
 output_file.xml
+.DS_Store
+*.pptx
