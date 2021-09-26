@@ -98,28 +98,27 @@ x1_0 = 67    # Initial x position of player 1
 y1_0 = 343    # Initial y position of player 1
 v1_0 = 0.1    # Initial velocity of player 1
 theta1_0 = 1.25*pi    # Initial heading of player 1
-a1_0 = -2    # Initial acceleration of player 1
+a1_0 = 0    # Initial acceleration of player 1
 phi1_0 = 0    # Initial steering angle of player 1
 tpx1 = 1 # Initial index of progression along track
 
 a_min1 = -6  # Maximum braking force for player 1
 a_max1 = 6  # Maximum acceleration for player 1
-phi_max1 = 30  # Maximum steering angle for player 1
+phi_max1 = 30*pi/180  # Maximum steering angle for player 1
 L1 = 0.35 # Length of player 1's car
 v_max1 = 5 # Max Velocity of player 1's car
 cornering_max1 = 1.0 # Max cornering Gs for player 1
 
 T = 3         # Time Horizon
-freq = 100    # Frequency
+freq = 10    # Frequency
 n = T * freq  # Total Time steps
-
+Δt = 1 / freq
 @variables(car, begin
-    Δt ≥ 0, (start = 1 / n) # Time step
     # State variables
     0 ≤ v1[1:n] ≤ v_max1           # Velocity
     -20 ≤ x1[1:n] ≤ 20    # X Position
     -20 ≤ y1[1:n] ≤ 20    # Y Position
-    -20 ≤ theta1[1:n] ≤ 20    # Heading (I want to make this unbounded)
+    theta1[1:n]  # Heading
 
     # Control variables
     a_min1 ≤ a1[1:n] ≤ a_max1    # Acceleration
@@ -153,8 +152,6 @@ fix(phi1[1], phi1_0; force = true)
     begin
         # Curvature(steering_angle) = tan(phi)/L
         kappa1[j = 1:n], tan(phi1[j])/L1
-        # Time of travel
-        t_f, Δt * n
     end
 )
 
@@ -162,7 +159,7 @@ fix(phi1[1], phi1_0; force = true)
 
 
 function calculate_lateral_acceleration(v, kappa)
-    return (v^2)*kappa
+    return (v^2)*abs(kappa)
 end
 
 for j in 2:n
@@ -177,7 +174,7 @@ for j in 2:n
     # @NLconstraint(car, track_progression(x1[j], y1[j], tpx1)[2] <= TRACK_WIDTH^2)
 
     # Lateral Acceleration Constraints
-    @NLconstraint(car, calculate_lateral_acceleration(v1[j], kappa1[j]) <= cornering_max1)
+    @NLconstraint(car, calculate_lateral_acceleration(v1[j], kappa1[j]) <= 0)
 
 end
 
@@ -186,7 +183,7 @@ solution_summary(car)
 
 function my_plot(y, ylabel)
     return Plots.plot(
-        (1:n) * value.(Δt),
+        (1:n) * Δt,
         value.(y)[:];
         xlabel = "Time (s)",
         ylabel = ylabel,
@@ -204,7 +201,7 @@ end
 
 Plots.plot(
     my_plot(a1, "Acceleration"),
-    my_plot(phi1, "Steering Angle"),
+    my_plot(phi1*(180/pi), "Steering Angle"),
     my_plot(v1, "Velocity"),
     position_plot(x1, y1);
     layout = (2, 2),
