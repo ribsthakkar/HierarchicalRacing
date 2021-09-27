@@ -104,20 +104,20 @@ tpx1 = 1 # Initial index of progression along track
 
 a_min1 = -6  # Maximum braking force for player 1
 a_max1 = 6  # Maximum acceleration for player 1
-phi_max1 = 30*pi/180  # Maximum steering angle for player 1
+phi_max1 = deg2rad(30)  # Maximum steering angle for player 1
 L1 = 0.35 # Length of player 1's car
 v_max1 = 5 # Max Velocity of player 1's car
 cornering_max1 = 1.0 # Max cornering Gs for player 1
 
 T = 3         # Time Horizon
-freq = 10    # Frequency
+freq = 20    # Frequency
 n = T * freq  # Total Time steps
 Δt = 1 / freq
 @variables(car, begin
     # State variables
     0 ≤ v1[1:n] ≤ v_max1           # Velocity
-    -20 ≤ x1[1:n] ≤ 20    # X Position
-    -20 ≤ y1[1:n] ≤ 20    # Y Position
+    0 ≤ x1[1:n] ≤ 800    # X Position
+    0 ≤ y1[1:n] ≤ 800    # Y Position
     theta1[1:n]  # Heading
 
     # Control variables
@@ -126,17 +126,14 @@ n = T * freq  # Total Time steps
 end)
 
 
-function track_progression(x, y, idx, pos_horizon=30)
- i = idx
- min_dist = ((x-TRACK_CENTER_X[i])^2 + (y-TRACK_CENTER_Y[i])^2)
+function min_dist_to_track_center(x, y, idx, pos_horizon=30)
+ idx = floor(Int, idx)
+ min_dist = ((x-TRACK_CENTER_X[idx%length(TRACK_CENTER_X)])^2 + (y-TRACK_CENTER_Y[idx%length(TRACK_CENTER_X)])^2)
  for j in idx:(idx + pos_horizon)
     dist = ((x-TRACK_CENTER_X[j%length(TRACK_CENTER_X)])^2 + (y-TRACK_CENTER_Y[j%length(TRACK_CENTER_X)])^2)
-    if  min(dist, min_dist) == min_dist
-        min_dist = dist
-        i = j
-    end
+    min_dist = min(dist, min_dist)
  end
- return i, min_dist
+ return  min_dist
 end
 
 
@@ -162,6 +159,9 @@ function calculate_lateral_acceleration(v, kappa)
     return (v^2)*abs(kappa)
 end
 
+register(car, :calculate_lateral_acceleration, 2, calculate_lateral_acceleration; autodiff = true)
+register(car, :min_dist_to_track_center, 3, min_dist_to_track_center; autodiff = true)
+
 for j in 2:n
     # Dynamics Constraints
     # Rectangular integration
@@ -169,14 +169,13 @@ for j in 2:n
     @NLconstraint(car, y1[j] == y1[j - 1] + Δt * v1[j - 1]*sin(theta1[j - 1]))
     @NLconstraint(car, theta1[j] == theta1[j - 1] + Δt * v1[j - 1]*tan(phi1[j - 1]))
     @NLconstraint(car, v1[j] == v1[j - 1] + Δt * a1[j - 1])
-
-    # Track Limits Constraints (I am using logical operators in the following constraint, so it is not happy about this)
-    # @NLconstraint(car, track_progression(x1[j], y1[j], tpx1)[2] <= TRACK_WIDTH^2)
-
+    # Track Limits Constraints (found a weird workaround, not sure if it is making a difference)
+    @NLconstraint(car, min_dist_to_track_center(x1[j], y1[j], tpx1) <= TRACK_WIDTH^2)
     # Lateral Acceleration Constraints
-    @NLconstraint(car, calculate_lateral_acceleration(v1[j], kappa1[j]) <= 0)
+    @NLconstraint(car, calculate_lateral_acceleration(v1[j], kappa1[j]) <= cornering_max1)
 
 end
+
 
 optimize!(car)
 solution_summary(car)
@@ -196,6 +195,7 @@ function position_plot(x, y)
         value.(y)[:];
         xlabel = "X Position",
         ylabel = "Y Position",
+        aspect_ratio=:equal,
     )
 end
 
