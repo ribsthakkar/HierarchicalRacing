@@ -1,6 +1,5 @@
 import math
-from car_modes import DriveModes
-from car_states import InputModeCarState, FourModeCarState
+from car_states import DiscreteVelocityHeadingInputCarState, BicycleCarState
 from util import dist
 
 class Car:
@@ -33,12 +32,12 @@ class Car:
         return self.control_type
 
 
-class FourModeCar(Car):
+class BicycleCar(Car):
     def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, controller_parameters):
         super().__init__(car_profile, track, controller_parameters)
-        self.state = FourModeCarState(x, y, dx, dy, d2x, d2y, self.length, self.width, heading, track)
+        self.state = BicycleCarState(x, y, dx, dy, d2x, d2y, self.length, self.width, heading, track)
 
-    def input_steer_accelerate_command(self, acceleration, steering_angle, mode, time_step):
+    def input_steer_accelerate_command(self, acceleration, steering_angle, time_step):
         if steering_angle < -math.radians(self.max_steering_angle):
             steering_angle = -math.radians(self.max_steering_angle)
         if steering_angle > math.radians(self.max_steering_angle):
@@ -47,24 +46,23 @@ class FourModeCar(Car):
             acceleration = self.max_acceleration
         if acceleration < self.max_braking:
             acceleration = self.max_braking
-        acceleration, steering_angle, mode = self.state.update(acceleration, steering_angle, mode, self.length / 2,
-                                                               self.length / 2, time_step, self.track,
-                                                               max_braking=self.max_braking)
+        acceleration, steering_angle, mode = self.state.update(acceleration, steering_angle, self.length / 2,
+                                                               self.length / 2, time_step, self.track)
         return acceleration, steering_angle, mode
 
 
-class DiscreteInputModeCar(Car):
+class DiscreteVelocityHeadingInputCar(Car):
     def __init__(self, x, y, dx, dy, d2x, d2y, heading, car_profile, track, controller_parameters):
         super().__init__(car_profile, track, controller_parameters)
         if 'mode_manager_params' in controller_parameters:
             manager_params = controller_parameters['mode_manager_params']
         else:
             manager_params = None
-        self.state = InputModeCarState(x, y, dx, dy, d2x, d2y, heading, track, self.length, self.width,
-                                       self.max_acceleration, self.max_braking, self.max_gs, self.max_vel,
-                                       self.max_steering_angle, manager_params)
+        self.state = DiscreteVelocityHeadingInputCarState(x, y, dx, dy, d2x, d2y, heading, track, self.length, self.width,
+                                                          self.max_acceleration, self.max_braking, self.max_gs, self.max_vel,
+                                                          self.max_steering_angle, manager_params)
 
-    def input_steer_accelerate_command(self, acceleration, steering_angle, mode, time_step):
+    def input_steer_accelerate_command(self, acceleration, steering_angle, time_step):
         cars_ahead = self.track.cars_ahead[self]
         cars_side = self.track.cars_side[self]
         if steering_angle < -math.radians(self.max_steering_angle):

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 plt.switch_backend('Qt5Agg')
 
 from bezier_optimizer import bezier_race_optimize
-from car_models import FourModeCar, Car, DiscreteInputModeCar
+from car_models import BicycleCar, Car, DiscreteVelocityHeadingInputCar
 from car_modes import ControlType
 from static_optimizer import static_race_optimize
 from track import Track
@@ -71,8 +71,8 @@ class Simulator():
                     initial_idx = self.cars.index(car)
                     print("CAR:", initial_idx, "Time: ", t)
                     if car_ordering[idx].get_control_type() == ControlType.STEER_ACCELERATE:
-                        acceleration, steering, mode = actions[initial_idx].popleft()
-                        acceleration, steering, mode = car_ordering[idx].input_steer_accelerate_command(acceleration, steering, mode, time_step)
+                        acceleration, steering = actions[initial_idx].popleft()
+                        acceleration, steering, _ = car_ordering[idx].input_steer_accelerate_command(acceleration, steering, time_step)
                     elif car_ordering[idx].get_control_type() == ControlType.MODE_ONLY:
                         mode = actions[initial_idx].popleft()
                         acceleration, steering, mode = car_ordering[idx].input_mode_command(mode, time_step)
@@ -83,7 +83,7 @@ class Simulator():
                     car_positions_y[car].append(car.state.y)
                     car_velocities[car].append(car.state.v)
                     car_steering_angles[car].append(steering * 180/math.pi)
-                    car_distances[car].append(car_distances[car][-1] + time_step * math.sqrt(car.state.v))
+                    car_distances[car].append(car_distances[car][-1] + time_step * math.sqrt(abs(car.state.v)))
                 t += time_step
             car_boxes = [None] * len(self.cars)
             if saving or interactive:
@@ -251,9 +251,9 @@ if __name__ == "__main__":
         'control_type': ControlType.STEER_ACCELERATE
     }
     all_cars = []
-    car1 = track.place_car_of_type(DiscreteInputModeCar,x=67, y=343, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=f1_profile, optimizer_parameters=control_params_1)
+    car1 = track.place_car_of_type(BicycleCar, x=67, y=343, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25 * math.pi, car_profile=f1_profile, optimizer_parameters=control_params_1)
     all_cars.append(car1)
-    car2 = track.place_car_of_type(DiscreteInputModeCar,x=60, y=341, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=mclaren720s_profile, optimizer_parameters=control_params_1)
+    car2 = track.place_car_of_type(DiscreteVelocityHeadingInputCar, x=60, y=341, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25 * math.pi, car_profile=mclaren720s_profile, optimizer_parameters=control_params_1)
     all_cars.append(car2)
     control_params_2 = {
         'optimizer': bezier_race_optimize,
@@ -267,7 +267,7 @@ if __name__ == "__main__":
         },
         'control_type': ControlType.STEER_ACCELERATE
     }
-    car3 = track.place_car_of_type(DiscreteInputModeCar, x=60, y=335, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25*math.pi, car_profile=basicsports_profile, optimizer_parameters=control_params_2)
+    car3 = track.place_car_of_type(DiscreteVelocityHeadingInputCar, x=60, y=335, dx=-.1, dy=-.1, d2x=-2, d2y=-2, heading=1.25 * math.pi, car_profile=basicsports_profile, optimizer_parameters=control_params_2)
     all_cars.append(car3)
     simulator = Simulator(track, all_cars)
-    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=200, interactive=True, saving=False, interactive_after_steps=85, update_visualization_after_steps=1, interactive_timeout=None)
+    simulator.simulate(time_step=0.1, update_frequency=0.5, total_steps=200, interactive=True, saving=False, interactive_after_steps=10, update_visualization_after_steps=1, interactive_timeout=None)

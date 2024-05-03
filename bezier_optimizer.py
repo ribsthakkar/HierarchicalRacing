@@ -8,7 +8,7 @@ import shapely.geometry as geom
 from scipy.optimize import NonlinearConstraint, Bounds, basinhopping, LinearConstraint
 
 from bezier_util import bezier_acceleration, bezier_speed, bezier_trajectory, bezier_arc_length
-from car_modes import DriveModes, ControlType
+from car_modes import ControlType
 from util import circ_slice, dist, gravitational_acceleration, TPI, log_leq_barrier_function_value, is_greater_than, \
     log_barrier_function_value
 
@@ -54,7 +54,7 @@ def bezier_race_optimize(agent, opponent_cars, replan_time, input_update_time):
                 st_an = math.atan((numerator/(sp **1.5)) * agent_b_car.car_length)
             else:
                 st_an = 0
-            actions.append((acceleration, st_an, DriveModes.RACE))
+            actions.append((acceleration, st_an))
         elif agent.get_control_type() == ControlType.MODE_ONLY:
             x_p = bezier_speed(agent_b_car.final_cp[:agent_b_car.num_cp], t, agent_b_car.bezier_order,
                                agent_b_car.time_horizon)
